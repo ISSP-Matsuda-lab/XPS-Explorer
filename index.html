@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>XPS Peak Explorer</title>
+  <link rel="stylesheet" href="assets/css/app.css" />
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div><div class="eyebrow">Surface Analysis Toolkit</div><h1>XPS Peak Explorer</h1><div class="subtitle">Energy reference viewer for core levels and Auger transitions</div></div>
+      <div class="header-actions"><div class="status"><span class="dot"></span> Reference mode</div><button id="resetAll" class="reset-all" type="button">Reset all</button></div>
+    </header>
+    <div class="layout">
+      <section class="panel">
+        <div class="toolbar">
+          <strong>Energy map</strong>
+          <button id="plotLegendButton" class="plot-layout-button" type="button" title="Show or hide the legend (Ctrl+3)">Legend</button>
+          <button id="plotOffsetsButton" class="plot-layout-button" type="button" title="Apply even X/Y offsets (Ctrl+4)">Even offsets</button>
+          <button id="plotLayoutButton" class="plot-layout-button" type="button">Edit plot layout</button>
+          <label class="analysis-state-control" for="analysisState">Data state
+            <select id="analysisState" aria-label="Displayed analysis state">
+              <option value="raw">raw (Before analysis)</option>
+            </select>
+          </label>
+        </div>
+        <div class="plot-wrap"><div id="cursorReadout" class="cursor-readout">Cursor: — eV</div><div class="plot-help">Ctrl+drag a spectrum to offset · Shift+click to locate its data row · Drag for actions · Double-click to autoscale</div><svg id="plot" role="img" aria-label="XPS peak energy and intensity plot"></svg><div id="plotLegend" class="plot-legend" hidden></div><div id="dragMenu" class="drag-menu" hidden><button type="button" data-action="zoom-xy">Zoom both axes</button><button type="button" data-action="zoom-x">Zoom horizontal axis</button><button type="button" data-action="zoom-y">Zoom vertical axis</button><div class="drag-menu-separator"></div><button type="button" data-action="constant">Constant background</button><button type="button" data-action="height">Normalize height</button><button type="button" data-action="area">Normalize area</button></div><div id="analysisMessage" class="analysis-message" role="status" aria-live="polite" hidden></div><div id="axisLabel" class="axis-label">Binding energy (eV) — high to low</div><div id="yAxisLabel" class="y-axis-label" hidden>Intensity (counts/s)</div></div>
+        <div class="legend"><span><i></i>Core level</span><span><i class="auger"></i>Auger transition</span></div>
+        <div class="source-bar">
+          <label>Excitation source
+            <select id="photonPreset" aria-label="Excitation source preset">
+              <option value="1486.6">Al Kα (1486.6 eV)</option>
+              <option value="1253.6">Mg Kα (1253.6 eV)</option>
+              <option value="custom">Custom</option>
+            </select>
+          </label>
+          <label>Photon energy
+            <input id="photonEnergy" type="number" min="0.1" step="0.1" value="1486.6" inputmode="decimal" aria-describedby="photonHelp" />
+          </label>
+          <span class="source-unit" id="photonHelp">eV</span>
+          <label>Work function
+            <input id="workFunction" type="number" min="0" step="0.1" value="4.5" inputmode="decimal" aria-describedby="workFunctionHelp" />
+          </label>
+          <span class="source-unit" id="workFunctionHelp">eV</span>
+          <div class="axis-control">
+            <span>Energy axis</span>
+            <div class="segmented" aria-label="Energy axis"><button id="binding" class="active">Binding energy</button><button id="kinetic">Kinetic energy</button></div>
+          </div>
+          <div class="layer-control" aria-label="Peak types to display">
+            <label class="check"><input id="showCore" type="checkbox" checked /> Core</label>
+            <label class="check"><input id="showAuger" type="checkbox" /> Auger</label>
+          </div>
+        </div>
+      </section>
+      <aside class="panel">
+        <h2>Selected elements</h2><div class="hint">No selection limit</div>
+        <div id="selection" class="selection"></div>
+        <button id="clear" class="clear">Clear selection</button>
+        <div class="notice">Reference binding energies are for neutral atoms. Peak positions vary with chemical state, charging, source, and work function. Levels above the photon energy are not shown.</div>
+      </aside>
+      <details id="energyDetails" class="panel energy-details" open>
+        <summary><strong id="energyDetailsTitle">Peak energies</strong><span id="energyDetailsHint" class="hint"></span></summary>
+        <div class="energy-tools">
+          <div class="segmented" aria-label="Energy table mode">
+            <button id="selectedEnergyMode" class="active" type="button">Selected elements</button>
+            <button id="searchEnergyMode" type="button">Energy search</button>
+          </div>
+          <div id="energySearchFields" class="energy-search-fields" hidden>
+            <div class="energy-search-control">
+              <label for="peakEnergy">Peak energy</label>
+              <div class="energy-search-inputs"><input id="peakEnergy" type="number" min="0" step="0.1" value="285.0" inputmode="decimal" /><span class="unit">eV</span><input id="peakEnergyRange" type="range" min="0" max="1486.6" step="0.1" value="285.0" aria-label="Adjust peak energy" /></div>
+            </div>
+            <div class="energy-search-control">
+              <label for="energyTolerance">Search width (±)</label>
+              <div class="energy-search-inputs"><input id="energyTolerance" type="number" min="0" max="10" step="0.1" value="0.5" inputmode="decimal" /><span class="unit">eV</span><input id="energyToleranceRange" type="range" min="0" max="10" step="0.1" value="0.5" aria-label="Adjust search width" /></div>
+            </div>
+            <div class="energy-search-control">
+              <span class="control-label">Excitation order</span>
+              <div class="segmented" aria-label="Excitation orders to include">
+                <button id="firstOrderOnly" class="active" type="button">First order only</button>
+                <button id="includeHigherOrders" type="button">Include higher orders</button>
+              </div>
+            </div>
+          </div>
+          <span id="energySearchSummary" class="energy-search-summary"></span>
+        </div>
+        <div id="energyList" class="energy-list"></div>
+      </details>
+      <details class="panel data-panel" aria-labelledby="dataTitle" open>
+        <summary class="data-head"><strong id="dataTitle">Measurement data</strong><span class="hint">Select multiple spectra while preserving the XY Region / Spectrum structure</span><label class="file-button">Add XY files<input id="xyFiles" type="file" accept=".xy,text/plain" multiple /></label></summary>
+        <div id="dataBrowser" class="data-browser"><span class="hint">Loading data/Gr_No1_Ar1.xy…</span></div>
+      </details>
+      <section class="panel periodic-panel">
+        <div class="periodic-head"><h2>Periodic table</h2><span class="hint">Select elements with reference data from H to U</span></div>
+        <div id="periodic" class="periodic"></div>
+      </section>
+    </div>
+  </main>
+  <div id="tooltip" class="tooltip"></div>
+  <dialog id="analysisDialog" class="analysis-dialog">
+    <form id="analysisForm" method="dialog">
+      <h2 id="analysisDialogTitle">Analyze spectra</h2>
+      <p>Enter the energy range used to calculate this analysis.</p>
+      <div class="analysis-range">
+        <label for="analysisEnergyMin">Minimum energy (eV)<input id="analysisEnergyMin" type="number" step="any" required /></label>
+        <span>to</span>
+        <label for="analysisEnergyMax">Maximum energy (eV)<input id="analysisEnergyMax" type="number" step="any" required /></label>
+      </div>
+      <p id="analysisDialogError" class="dialog-error" role="alert" hidden></p>
+      <div class="dialog-actions"><button type="button" value="cancel">Cancel</button><button type="submit" class="primary">Run analysis</button></div>
+    </form>
+  </dialog>
+  <dialog id="plotLayoutDialog" class="analysis-dialog plot-layout-dialog">
+    <form id="plotLayoutForm" method="dialog">
+      <h2>Edit plot layout</h2>
+      <p>Select one or more spectra to edit together. Drag the list to change plot order.</p>
+      <div id="plotLayoutEmpty" class="dialog-error" hidden>Select at least one measurement spectrum first.</div>
+      <div id="plotLayoutBody" class="plot-layout-body">
+        <section class="plot-series-pane" aria-label="Spectra and plot order">
+          <div class="plot-series-head"><strong>Spectra</strong><span id="plotSelectionCount">0 selected</span></div>
+          <div class="plot-series-actions"><button id="plotSelectAll" type="button">Select all</button><button id="plotSelectNone" type="button">Clear</button></div>
+          <div id="plotSeriesList" class="plot-series-list"></div>
+        </section>
+        <div id="plotLayoutControls" class="plot-layout-controls">
+          <label for="plotRenderMode">Plot type<select id="plotRenderMode"><option value="line">Line</option><option value="line-markers">Connected data points</option><option value="markers">Markers only</option></select></label>
+          <label for="plotLineStyle">Line style<select id="plotLineStyle"><option value="solid">Solid</option><option value="dashed">Dashed</option></select></label>
+          <label for="plotLineWidth">Line width<input id="plotLineWidth" type="number" min="0.25" max="12" step="0.25" required /></label>
+          <label for="plotMarkerShape">Marker shape<select id="plotMarkerShape"><option value="circle">Circle</option><option value="square">Square</option><option value="diamond">Diamond</option><option value="triangle">Triangle</option><option value="cross">Cross</option></select></label>
+          <div class="plot-color-control"><label for="plotColor">Plot color<input id="plotColor" type="color" /></label><div id="plotColorPresets" class="plot-color-presets" aria-label="Preset plot colors"><button type="button" data-color="#62c9f5" aria-label="Sky blue"></button><button type="button" data-color="#7de0a3" aria-label="Green"></button><button type="button" data-color="#ffd166" aria-label="Yellow"></button><button type="button" data-color="#ff8e77" aria-label="Coral"></button><button type="button" data-color="#f47fb3" aria-label="Pink"></button><button type="button" data-color="#d88cff" aria-label="Purple"></button><button type="button" data-color="#8aa8ff" aria-label="Blue"></button><button type="button" data-color="#f2f5f4" aria-label="White"></button></div></div>
+          <label for="plotXOffset">X offset (eV)<input id="plotXOffset" type="number" step="any" required /></label>
+          <label for="plotYOffset">Y offset<input id="plotYOffset" type="number" step="any" required /></label>
+          <label for="plotMarkerSize">Marker size<input id="plotMarkerSize" type="number" min="1" max="20" step="0.5" required /></label>
+          <label for="plotMarkerStrokeWidth">Marker outline width<input id="plotMarkerStrokeWidth" type="number" min="0" max="10" step="0.25" required /></label>
+          <label class="marker-fill-option"><input id="plotMarkerFilled" type="checkbox" /> Fill markers</label>
+          <label class="marker-fill-option"><input id="plotHidden" type="checkbox" /> Hide plot</label>
+        </div>
+      </div>
+      <div class="dialog-actions"><button id="plotStyleReset" type="button">Reset style</button><span class="dialog-spacer"></span><button type="button" value="cancel">Cancel</button><button type="submit" class="primary">Apply</button></div>
+    </form>
+  </dialog>
+  <dialog id="plotOffsetsDialog" class="analysis-dialog plot-offsets-dialog">
+    <form id="plotOffsetsForm" method="dialog">
+      <h2>Even plot offsets</h2><p>Apply offsets to every plotted spectrum in plot order. The first spectrum always starts at zero.</p>
+      <div class="offset-interval-fields"><label for="plotXOffsetStep">X interval (eV)<input id="plotXOffsetStep" type="number" step="any" value="0" required /></label><label for="plotYOffsetStep">Y interval<input id="plotYOffsetStep" type="number" step="any" value="0" required /></label></div>
+      <p id="plotOffsetsError" class="dialog-error" role="alert" hidden></p>
+      <div class="dialog-actions"><button type="button" value="cancel">Cancel</button><button type="submit" class="primary">Apply to all plots</button></div>
+    </form>
+  </dialog>
+  <dialog id="legendEditDialog" class="analysis-dialog legend-edit-dialog">
+    <form id="legendEditForm" method="dialog">
+      <h2>Edit legend item</h2>
+      <div class="legend-edit-fields"><label for="legendItemName">Name<input id="legendItemName" type="text" required /></label><label for="legendItemFontSize">Font size (px)<input id="legendItemFontSize" type="number" min="8" max="48" step="1" required /></label></div>
+      <div class="dialog-actions"><button id="deleteLegendItem" class="danger" type="button">Delete item</button><span class="dialog-spacer"></span><button type="button" value="cancel">Cancel</button><button type="submit" class="primary">Apply</button></div>
+    </form>
+  </dialog>
+  <dialog id="fitDialog" class="analysis-dialog fit-dialog">
+    <form id="fitForm" method="dialog">
+      <h2>Fit selected spectrum</h2>
+      <p id="fitSpectrumName" class="fit-spectrum-name"></p>
+      <div class="fit-main-fields">
+        <label for="fitMethod">Fit model<select id="fitMethod"><option value="gaussian">Gaussian peaks</option><option value="lorentzian">Lorentzian peaks</option><option value="voigt">Voigt peaks (pseudo-Voigt)</option><option value="doniach-sunjic">Doniach–Šunjić peaks</option><option value="fermi-edge">Fermi edge</option></select></label>
+        <label for="fitEnergyMin">Minimum energy (eV)<input id="fitEnergyMin" type="number" step="any" required /></label>
+        <label for="fitEnergyMax">Maximum energy (eV)<input id="fitEnergyMax" type="number" step="any" required /></label>
+        <label id="fitPeakCountLabel" for="fitPeakCount">Number of peaks<input id="fitPeakCount" type="number" min="1" max="8" step="1" value="1" required /></label>
+        <label id="fitBackgroundLabel" for="fitBackground">Background<select id="fitBackground"><option value="none">None</option><option value="constant">Constant</option><option value="linear" selected>Linear</option><option value="shirley">Shirley</option></select></label>
+      </div>
+      <div id="fitPeakSection">
+        <div class="fit-peak-heading"><strong>Initial peak parameters</strong><span>Center and FWHM are in eV. Height uses the plotted intensity.</span></div>
+        <div id="fitPeakRows" class="fit-peak-rows"></div>
+      </div>
+      <p id="fitNote" class="fit-note">Initial values are editable; good starting centers are especially helpful for overlapping peaks.</p>
+      <p id="fitDialogError" class="dialog-error" role="alert" hidden></p>
+      <div class="dialog-actions"><button type="button" value="cancel">Cancel</button><button type="submit" class="primary">Run fit</button></div>
+    </form>
+  </dialog>
+  <dialog id="fitStyleDialog" class="analysis-dialog fit-style-dialog">
+    <form id="fitStyleForm" method="dialog">
+      <h2>Fitting line layout</h2>
+      <p id="fitStyleName" class="fit-spectrum-name"></p>
+      <div class="fit-style-fields">
+        <label for="fitLineColor">Line color<input id="fitLineColor" type="color" /></label>
+        <label for="fitLineStyle">Line style<select id="fitLineStyle"><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="dotted">Dotted</option></select></label>
+        <label for="fitLineWidth">Line width<input id="fitLineWidth" type="number" min="0.25" max="12" step="0.25" required /></label>
+        <label id="fitShowComponentsLabel" class="fit-check"><input id="fitShowComponents" type="checkbox" /> Show peak components</label>
+        <label id="fitShowBackgroundLabel" class="fit-check"><input id="fitShowBackground" type="checkbox" /> Show background</label>
+        <label id="fitShowAnnotationLabel" class="fit-check"><input id="fitShowAnnotation" type="checkbox" /> Show EF / FWHM label</label>
+      </div>
+      <div class="dialog-actions"><button type="button" value="cancel">Cancel</button><button type="submit" class="primary">Apply</button></div>
+    </form>
+  </dialog>
+  <script src="assets/js/binding-energies.js"></script>
+  <script src="assets/js/xy-parser.js"></script>
+  <script src="assets/js/fitting.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>

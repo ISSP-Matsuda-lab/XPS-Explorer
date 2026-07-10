@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">Elements selected in the XPS Peak Explorer energy map</title>
+  <desc id="desc">The actual Energy map, source controls, and Selected elements panels with carbon, oxygen, and silicon reference peaks displayed.</desc>
+  <defs>
+    <radialGradient id="bg" cx="8%" cy="0%" r="80%"><stop stop-color="#123038"/><stop offset=".55" stop-color="#071216"/></radialGradient>
+    <filter id="shadow"><feDropShadow dy="12" stdDeviation="18" flood-opacity=".3"/></filter>
+    <style>
+      text{font-family:Inter,"Segoe UI",sans-serif;fill:#edf7f5}.muted{fill:#8eaaa7}.accent{fill:#77e4c8}.tiny{font-size:10px}.small{font-size:12px}.label{font-size:11px;font-weight:700}.panel{fill:#0d1d22;stroke:#254047}.control{fill:#08171b;stroke:#254047}.grid{stroke:#254047;stroke-width:1}.core{stroke:#77e4c8;stroke-width:2}.auger{stroke:#ffb45d;stroke-width:2;stroke-dasharray:5 4}
+    </style>
+  </defs>
+  <rect width="1200" height="760" rx="18" fill="url(#bg)"/>
+  <text x="28" y="28" class="accent tiny" font-weight="750" letter-spacing="2">SURFACE ANALYSIS TOOLKIT</text>
+  <text x="28" y="56" font-size="25" font-weight="800">XPS Peak Explorer</text>
+  <text x="28" y="76" class="muted small">Energy reference viewer for core levels and Auger transitions</text>
+  <g filter="url(#shadow)">
+    <rect x="28" y="98" width="842" height="626" rx="14" class="panel"/>
+    <text x="47" y="129" font-size="14" font-weight="700">Energy map</text>
+    <rect x="415" y="111" width="64" height="28" rx="7" class="control"/><text x="431" y="130" class="tiny">Legend</text>
+    <rect x="487" y="111" width="81" height="28" rx="7" class="control"/><text x="501" y="130" class="tiny">Even offsets</text>
+    <rect x="576" y="111" width="93" height="28" rx="7" class="control"/><text x="587" y="130" class="tiny">Edit plot layout</text>
+    <text x="681" y="129" class="muted tiny" font-weight="700">Data state</text><rect x="739" y="111" width="113" height="28" rx="7" class="control"/><text x="750" y="130" class="tiny">raw (Before analysis)</text>
+    <path d="M28 150H870" stroke="#254047"/>
+    <text x="119" y="171" class="accent small">Cursor: — eV</text><text x="674" y="171" class="muted tiny">Drag to choose an action · Double-click to autoscale</text>
+    <g opacity=".75"><path d="M88 210H842M88 275H842M88 340H842M88 405H842M88 470H842" class="grid"/><path d="M88 190V494M239 190V494M390 190V494M541 190V494M692 190V494M842 190V494" class="grid"/></g>
+    <text x="48" y="215" class="muted tiny">1.0</text><text x="48" y="345" class="muted tiny">0.5</text><text x="48" y="477" class="muted tiny">0.0</text>
+    <text x="74" y="512" class="muted tiny">1500</text><text x="225" y="512" class="muted tiny">1200</text><text x="382" y="512" class="muted tiny">900</text><text x="532" y="512" class="muted tiny">600</text><text x="685" y="512" class="muted tiny">300</text><text x="837" y="512" class="muted tiny">0</text>
+    <line x1="699" y1="190" x2="699" y2="494" class="core"/><text x="705" y="208" class="accent small" font-weight="650">C 1s</text>
+    <line x1="575" y1="190" x2="575" y2="494" stroke="#62c9f5" stroke-width="2"/><text x="581" y="225" fill="#62c9f5" class="small" font-weight="650">O 1s</text>
+    <line x1="791" y1="190" x2="791" y2="494" stroke="#d88cff" stroke-width="2"/><text x="752" y="243" fill="#d88cff" class="small" font-weight="650">Si 2p</text>
+    <line x1="312" y1="190" x2="312" y2="494" class="auger"/><text x="318" y="260" fill="#ffb45d" class="small" font-weight="650">C KLL</text>
+    <text x="401" y="541" class="muted small">Binding energy (eV) — high to low</text>
+    <text x="48" y="559" class="muted tiny"><tspan fill="#77e4c8">━</tspan> Core level</text><text x="130" y="559" class="muted tiny"><tspan fill="#ffb45d">┅</tspan> Auger transition</text>
+    <path d="M28 574H870" stroke="#254047"/>
+    <text x="47" y="596" class="muted tiny" font-weight="700">Excitation source</text><rect x="47" y="604" width="184" height="42" rx="7" class="control"/><text x="60" y="630" font-size="15" font-weight="700">Al Kα (1486.6 eV)</text>
+    <text x="246" y="596" class="muted tiny" font-weight="700">Photon energy</text><rect x="246" y="604" width="126" height="42" rx="7" class="control"/><text x="259" y="631" font-size="17" font-weight="750">1486.6</text><text x="379" y="630" class="muted small">eV</text>
+    <text x="413" y="596" class="muted tiny" font-weight="700">Work function</text><rect x="413" y="604" width="105" height="42" rx="7" class="control"/><text x="426" y="631" font-size="17" font-weight="750">4.5</text><text x="526" y="630" class="muted small">eV</text>
+    <text x="570" y="596" class="muted tiny" font-weight="700">Energy axis</text><rect x="570" y="604" width="177" height="42" rx="8" class="control"/><rect x="574" y="608" width="87" height="34" rx="5" fill="#77e4c8"/><text x="585" y="630" fill="#06201a" class="tiny" font-weight="700">Binding energy</text><text x="671" y="630" class="muted tiny">Kinetic energy</text>
+    <rect x="763" y="616" width="12" height="12" rx="2" fill="#77e4c8"/><text x="781" y="627" class="muted small">Core</text><rect x="817" y="616" width="12" height="12" rx="2" fill="#77e4c8"/><text x="835" y="627" class="muted small">Auger</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="888" y="98" width="284" height="626" rx="14" class="panel"/>
+    <text x="907" y="130" font-size="16" font-weight="700">Selected elements</text><text x="907" y="149" class="muted tiny">No selection limit</text>
+    <rect x="907" y="170" width="246" height="64" rx="9" fill="#12272c" stroke="#254047"/><rect x="918" y="181" width="9" height="42" rx="5" fill="#77e4c8"/><text x="941" y="197" font-weight="700">C</text><text x="941" y="215" class="muted tiny">1 core · Auger available</text><text x="1130" y="206" class="muted">×</text>
+    <rect x="907" y="244" width="246" height="64" rx="9" fill="#12272c" stroke="#254047"/><rect x="918" y="255" width="9" height="42" rx="5" fill="#62c9f5"/><text x="941" y="271" font-weight="700">O</text><text x="941" y="289" class="muted tiny">2 core · Auger available</text><text x="1130" y="280" class="muted">×</text>
+    <rect x="907" y="318" width="246" height="64" rx="9" fill="#12272c" stroke="#254047"/><rect x="918" y="329" width="9" height="42" rx="5" fill="#d88cff"/><text x="941" y="345" font-weight="700">Si</text><text x="941" y="363" class="muted tiny">4 core · Auger available</text><text x="1130" y="354" class="muted">×</text>
+    <rect x="907" y="400" width="246" height="36" rx="8" fill="none" stroke="#254047"/><text x="985" y="423" class="muted small">Clear selection</text>
+    <path d="M907 459H1153" stroke="#254047"/><text x="907" y="483" class="muted tiny">Reference binding energies are for neutral atoms.</text><text x="907" y="500" class="muted tiny">Peak positions vary with chemical state, charging,</text><text x="907" y="517" class="muted tiny">source, and work function.</text>
+  </g>
+</svg>
