@@ -41,7 +41,7 @@
     function restoreWorkspace(state){
       if(!state||![1,2].includes(state.version))return false;
       selected.clear();(state.selected||[]).forEach(([symbol,item])=>{if(peaks[symbol])selected.set(symbol,item)});
-      const restoredFiles=(state.dataFiles||[]).filter(file=>state.version===2||file.name!=='data/Gr_No1_Ar1.xy');dataFiles.splice(0,dataFiles.length,...restoredFiles);dataFiles.forEach(file=>file.spectra.forEach(s=>{s.results=s.results||[];s.fits=s.fits||[]}));selectedSpectra.clear();(state.selectedSpectra||[]).forEach(id=>selectedSpectra.add(id));
+      const restoredFiles=(state.dataFiles||[]).filter(file=>state.version===2||!String(file.name||'').startsWith('data/'));dataFiles.splice(0,dataFiles.length,...restoredFiles);dataFiles.forEach(file=>file.spectra.forEach(s=>{s.results=s.results||[];s.fits=s.fits||[]}));selectedSpectra.clear();(state.selectedSpectra||[]).forEach(id=>selectedSpectra.add(id));
       analysisSnapshots.clear();(state.analysisSnapshots||[]).forEach(([id,snapshot])=>analysisSnapshots.set(id,{...snapshot,points:new Map(snapshot.points||[])}));
       activeAnalysis=state.activeAnalysis==='raw'||analysisSnapshots.has(state.activeAnalysis)?state.activeAnalysis:'raw';nextSpectrumId=Number.isInteger(state.nextSpectrumId)?state.nextSpectrumId:0;
       const ui=state.ui||{};mode=ui.mode==='kinetic'?'kinetic':'binding';energyTableMode=ui.energyTableMode==='search'?'search':'selected';photon=Number.isFinite(ui.photon)&&ui.photon>0?ui.photon:1486.6;workFunction=Number.isFinite(ui.workFunction)&&ui.workFunction>=0?ui.workFunction:4.5;includeHigherOrderExcitation=Boolean(ui.includeHigherOrderExcitation);zoomDomain=Array.isArray(ui.zoomDomain)?ui.zoomDomain:null;zoomYDomain=Array.isArray(ui.zoomYDomain)?ui.zoomYDomain:null;plotOrder.splice(0,plotOrder.length,...(Array.isArray(ui.plotOrder)?ui.plotOrder:[]));normalizePlotOrder();plotLegendState=normalizeLegendState(ui.plotLegend);
@@ -113,7 +113,7 @@
     function setGroupSelection(spectra,selected){spectra.forEach(s=>{s.groupPlotHidden=false;selected?selectedSpectra.add(s.id):selectedSpectra.delete(s.id);(s.fits||[]).forEach(fit=>{fit.visible=selected});(s.results||[]).forEach(operation=>operation.curves.filter(curve=>!curve.removed).forEach(curve=>{curve.visible=selected}))});zoomDomain=null;zoomYDomain=null;renderDataBrowser();renderPlot()}
     function renderDataBrowser(){
       dataBrowser.innerHTML='';
-      if(!dataFiles.length){dataBrowser.innerHTML='<span class="hint">No XY data has been loaded</span>';return}
+      if(!dataFiles.length){dataBrowser.innerHTML='<span class="hint">No XY data has been loaded. Use Add XY files to import spectra.</span>';return}
       dataFiles.forEach(file=>{
         const row=document.createElement('details');row.className='data-file';row.open=true;
         const name=document.createElement('summary');name.className='data-file-name';
@@ -356,16 +356,12 @@
     resetAllButton.onclick=async()=>{storageReady=false;clearTimeout(saveTimer);if(storageDatabase){storageDatabase.close();storageDatabase=null}await new Promise(resolve=>{const request=indexedDB.deleteDatabase(STORAGE_DB);request.onsuccess=request.onerror=request.onblocked=()=>resolve()});location.reload()};
     window.addEventListener('pagehide',()=>{clearTimeout(saveTimer);persistWorkspace()});
     async function initialize(){
-      let restored=false,loadError=null;
+      let restored=false;
       try{restored=restoreWorkspace(await readStoredWorkspace())}catch(error){console.error('Could not restore workspace state',error)}
-      if(!dataFiles.some(file=>file.name==='data/Gr_No1_Ar1.xy')){
-        try{const response=await fetch('data/Gr_No1_Ar1.xy');if(!response.ok)throw new Error(`HTTP ${response.status}`);addDataFile('data/Gr_No1_Ar1.xy',await response.text())}catch(error){loadError=error}
-      }
       if(!restored){
         ['C','O','Fe'].forEach(s=>elementButton(s).click());
       }
       refreshAnalysisStateOptions();updateSearchSliderBounds();renderDataBrowser();renderFitResults();render();
-      if(loadError){const message=document.createElement('span');message.className='data-error';message.textContent=`Could not load data/Gr_No1_Ar1.xy: ${loadError.message}`;dataBrowser.prepend(message)}
       storageReady=true;schedulePersist();
     }
     initialize();

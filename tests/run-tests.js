@@ -1,21 +1,49 @@
 const assert = require('assert');
-const fs = require('fs');
-const path = require('path');
 const parser = require('../assets/js/xy-parser.js');
 const fitting = require('../assets/js/fitting.js');
 
-const root = path.resolve(__dirname, '..');
-const spectra = parser.parseXY(fs.readFileSync(path.join(root, 'data', 'Gr_No1_Ar1.xy'), 'utf8'));
-assert.strictEqual(spectra.length, 47, 'all measurement spectra should be parsed');
+const spectra = parser.parseXY(`
+# Group: Synthetic sample
+# Region: C 1s
+# Spectrum ID: 1
+# Excitation Energy: 1486.6
+# Cycle: 1, Curve: 1
+# Values/Curve: 3
+# ColumnLabels: energy counts/s
+285.0 120
+284.9 150
+284.8 130
+# Operation: Constant background
+# Range Start: 284.8
+# Range End: 285.0
+# Parameter: "Background" = 100
+# Result Name: Background
+# Values/Curve: 2
+# Curve: Background
+285.0 100
+284.9 100
+# Result Name: Residuum
+# Values/Curve: 2
+# Curve: Residuum
+285.0 20
+284.9 50
+# Region: O 1s
+# Spectrum ID: 2
+# Cycle: 1, Curve: 1
+# Values/Curve: 2
+# ColumnLabels: energy counts/s
+532.0 40
+531.9 42
+`);
+assert.strictEqual(spectra.length, 2, 'all synthetic measurement spectra should be parsed');
+assert.deepStrictEqual(spectra.map((spectrum) => spectrum.points.length), [3, 2], 'raw points should be grouped by region');
 
 const imported = spectra.filter((spectrum) => spectrum.results.length);
-assert.deepStrictEqual(imported.map((spectrum) => spectrum.points.length), [501, 501, 301], 'result data must not leak into raw points');
+assert.deepStrictEqual(imported.map((spectrum) => spectrum.points.length), [3], 'result data must not leak into raw points');
 assert.deepStrictEqual(
   imported.map((spectrum) => spectrum.results[0].curves.map((curve) => [curve.name, curve.points.length])),
   [
-    [['Background', 19], ['Peak 1', 19], ['Residuum', 19]],
-    [['Background', 21], ['Peak 1', 21], ['Residuum', 19]],
-    [['Background', 718], ['Fermi Edge', 718]]
+    [['Background', 2], ['Residuum', 2]]
   ],
   'imported operation results should be separate named curves'
 );
@@ -98,11 +126,5 @@ assert(bindingEdgeFit.rSquared > 0.999999, 'Binding-energy Fermi background shou
 assert.strictEqual(bindingEdgeFit.parameters.backgroundSide, 'higher', 'Binding-energy fit should preserve its background side');
 assert.strictEqual(bindingEdgeFit.parameters.edgeDirection, 'rising', 'Binding-energy Fermi edge should rise with binding energy');
 bindingEdgeFit.points.forEach((point, index) => assert(point[1] >= bindingEdgeFit.backgroundPoints[index][1] - 1e-9, 'Fermi fit should stay above its background'));
-
-const sampleFermi = spectra.find((spectrum) => spectrum.region === 'Au_fermi_pumped');
-const sampleFermiPoints = sampleFermi.points.filter((point) => point[0] >= 749.609 && point[0] <= 752).sort((a, b) => a[0] - b[0]);
-const sampleFermiFit = fitting.fitFermiEdge(sampleFermiPoints, {});
-assert(sampleFermiFit.rSquared > 0.99, 'Fermi-edge fitting should reproduce the bundled Au spectrum');
-assert(Math.abs(sampleFermiFit.parameters.center - 750.6) < 0.1, 'Fermi-edge center should match the bundled result');
 
 console.log('All parser and fitting tests passed.');
