@@ -275,6 +275,11 @@
       .subtitle { font-size: 12px; }
       .header-actions { justify-content: space-between; }
       .layout { display: grid; grid-template-columns: 1fr; gap: 12px; }
+      .layout > section.panel:not(.periodic-panel) { order: 1; }
+      .energy-details { order: 2; }
+      .periodic-panel { order: 3; }
+      .layout > aside { order: 4; }
+      .data-panel { order: 5; }
       .panel { border-radius: 10px; }
       .toolbar { flex-wrap: wrap; align-items: stretch; padding: 10px; }
       .toolbar strong { flex: 1 0 100%; }
