@@ -1,83 +1,85 @@
-# CoreLevel — XPS Peak Explorer
+# CoreLevel - XPS Peak Explorer
 
-XPS（X線光電子分光）などの測定結果を調べるために、**物質に含まれる元素の結合エネルギーとオージェ電子のエネルギーを可視化する**ブラウザーアプリです。
+XPS Peak Explorer is a browser app for inspecting X-ray photoelectron spectroscopy (XPS) and related measurements by **visualizing element binding energies and Auger electron energies**.
 
-基本の流れは、画面下部の周期表から元素を選び、画面上部のグラフでピーク位置を比較するか、エネルギー表で具体的な値を確認することです。反対に、測定で得たピークエネルギーから候補元素を探すこともできます。さらに、XY形式の測定データを参照ピークへ重ね、簡単なバックグラウンド処理や規格化を行えます。
+The basic workflow is to select elements from the periodic table at the bottom of the screen, compare expected peak positions in the plot at the top, and inspect exact values in the energy table. You can also search for candidate elements from a measured peak energy. XY measurement files can be overlaid on the reference peaks, with simple background subtraction and normalization tools available in the browser.
 
-HからUまでの中性原子のコア準位とオージェ遷移を収録し、Al Kα、Mg Kα、任意の励起光エネルギーに対応しています。中性原子の結合エネルギーは LBNL X-Ray Data Booklet (XDB) の参照データに基づいています。オージェ電子の運動エネルギーは NIST X-ray Photoelectron Spectroscopy Database (SRD 20) の推奨元素参照データを優先し、未収録の代表線は XDB の Principal Auger Electron Energies を補完参照しています。
+The app includes neutral-atom core levels and Auger transitions from H to U. It supports Al K-alpha, Mg K-alpha, and custom excitation photon energies. Neutral-atom binding energies are based on the LBNL X-Ray Data Booklet (XDB). Auger kinetic energies prefer recommended elemental reference data from the NIST X-ray Photoelectron Spectroscopy Database (SRD 20), supplemented by XDB Principal Auger Electron Energies where representative lines are not covered.
 
-## 起動方法
+## Running Locally
 
-ビルドやパッケージのインストールは不要です。リポジトリのルートでローカルHTTPサーバーを起動してください。
+No build step or package installation is required. Start a local HTTP server from the repository root:
 
 ```bash
 python3 -m http.server 8000
 ```
 
-ブラウザーで <http://localhost:8000> を開きます。終了するときは、サーバーを実行しているターミナルで `Ctrl+C` を押します。
+Open <http://localhost:8000> in your browser. To stop the server, press `Ctrl+C` in the terminal where it is running.
 
 > [!NOTE]
-> `index.html` を直接開くこともできますが、ブラウザーのセキュリティ制限を避けるため、通常はローカルHTTPサーバーを使用してください。
+> You can open `index.html` directly, but using a local HTTP server is recommended to avoid browser security restrictions.
 
-## 基本的な使いかた
+## Basic Usage
 
-### 1. 元素を選び、参照ピークを可視化する
+### 1. Select Elements and Visualize Reference Peaks
 
-画面下部の `Periodic table` で、測定対象に含まれると考えられる元素を選択します。選択した元素は明るく表示され、画面上部の `Selected elements` に追加されます。同時に、`Energy map` にその元素のコア準位が縦線として表示されます。
+Use the `Periodic table` at the bottom of the screen to select elements that may be present in the sample. Selected elements are highlighted, added to `Selected elements`, and shown as vertical reference lines in the `Energy map`.
 
-![周期表で元素を選択し、Energy mapに参照ピークを表示した画面](docs/images/usage-reference-map.svg)
+![Elements selected in the periodic table and displayed as reference peaks in the Energy map](docs/images/usage-reference-map.svg)
 
-- `Core` は結合エネルギー、`Auger` はオージェ遷移を表示します。両方を同時に表示できます。
-- `Binding energy` と `Kinetic energy` で横軸を切り替えます。
-- 選択元素のカードをクリックすると一時的に非表示、`×` で選択解除、`Clear selection` ですべて解除できます。
-- 励起源は `Al Kα`、`Mg Kα`、`Custom` から選択し、必要に応じて `Photon energy` と `Work function` を設定します。
+- `Core` displays binding energies, and `Auger` displays Auger transitions. Both can be shown at the same time.
+- Switch the horizontal axis between `Binding energy` and `Kinetic energy`.
+- Click a selected element card to temporarily hide it, use `x` to remove it, or use `Clear selection` to clear all selected elements.
+- Choose the excitation source from `Al K-alpha`, `Mg K-alpha`, or `Custom`, then adjust `Photon energy` and `Work function` if needed.
 
-### 2. 表で具体的なエネルギーを確認する
+### 2. Inspect Exact Energy Values
 
-`Peak energies` の `Selected elements` を開くと、選択した元素について、準位ごとのエネルギーを一覧で確認できます。`Core` / `Auger` やエネルギー軸の設定はグラフと表で共通です。
+Open `Selected elements` in `Peak energies` to see the energy values for each selected element and level. The `Core` / `Auger` selection and energy-axis mode are shared between the plot and the table.
 
-![選択元素の結合エネルギーを一覧表示した表](docs/images/usage-energy-table.svg)
+![Binding energies listed for selected elements](docs/images/usage-energy-table.svg)
 
-赤色の値は、設定中の励起光エネルギーを超えるため観測できない準位です。表示値は参照値なので、実測ピークと完全に一致するとは限りません。
+Values shown in red exceed the current excitation photon energy and are therefore not observable under that source. These are reference values, so measured peaks may not match them exactly.
 
-### 3. ピークエネルギーから候補元素を逆引きする
+### 3. Search Candidate Elements from a Peak Energy
 
-元素が不明なピークを調べる場合は、表を `Energy search` に切り替えます。`Peak energy` に測定値、`Search width (±)` に許容幅を入力すると、その範囲に入る元素・準位・差分が表示されます。
+If a peak is unknown, switch the table to `Energy search`. Enter the measured value in `Peak energy` and the allowed window in `Search width (+/-)`. The table lists matching elements, levels, and energy differences.
 
-![285 eV付近のピークエネルギーから候補元素を検索した画面](docs/images/usage-energy-search.svg)
+![Candidate elements found by searching around a 285 eV peak](docs/images/usage-energy-search.svg)
 
-高次光による励起も候補に含める場合は `Include higher orders` を選択します。候補の絞り込みには、試料組成、ほかのピーク、測定条件も併せて使ってください。
+Use `Include higher orders` when you want to include peaks excited by higher-order photons. Candidate assignment should also consider sample composition, other observed peaks, and measurement conditions.
 
-### 4. 測定データを重ねて比較する
+### 4. Overlay Measurement Data
 
-`Measurement data` の `Add XY files` から手元のXYファイルを1つ以上追加します。表示したいRegionにチェックを入れると、その測定スペクトルが `Energy map` に重なります。
+Use `Add XY files` in `Measurement data` to add one or more local XY files. Check the regions you want to display, and the selected spectra will be overlaid on the `Energy map`.
 
-![測定スペクトルを参照ピークへ重ね、解析操作を選ぶ画面](docs/images/usage-measurement-analysis.svg)
+![Measurement spectra overlaid on reference peaks with analysis actions available](docs/images/usage-measurement-analysis.svg)
 
-グラフ上をドラッグすると、選択範囲に対する操作メニューが開きます。
+Drag across the plot to open actions for the selected energy range:
 
-- `Zoom both axes` / `Zoom horizontal axis` / `Zoom vertical axis`: 表示範囲を拡大
-- `Constant background`: 定数バックグラウンドを差し引く
-- `Normalize height`: 選択範囲の最大値で規格化
-- `Normalize area`: 選択範囲の面積で規格化
+- `Zoom both axes` / `Zoom horizontal axis` / `Zoom vertical axis`: zoom the selected range
+- `Constant background`: subtract a constant background
+- `Normalize height`: normalize by the maximum intensity in the selected range
+- `Normalize area`: normalize by the integrated area in the selected range
 
-処理結果は新しい状態として保存され、`Data state` で処理前の `raw` と切り替えられます。グラフをダブルクリックすると表示範囲を自動調整します。
+Analysis results are saved as new states. Use `Data state` to switch between the original `raw` data and processed states. Double-click the plot to autoscale.
 
-### 表示を整える
+### Adjusting the Display
 
-- `Edit plot layout`: 線・マーカー・色・オフセット・表示順を編集
-- `Even offsets`: 複数スペクトルへ等間隔のオフセットを適用
-- `Legend`: 凡例を表示。ドラッグで移動し、項目のダブルクリックで名前と文字サイズを編集
+- `Edit plot layout`: edit line style, markers, color, offsets, and plot order
+- `Even offsets`: apply evenly spaced offsets to multiple spectra
+- `Legend`: show the legend, drag it to reposition it, and double-click items to edit names and font sizes
 
-## データの保存とリセット
+## Saving Data and Resetting
 
-読み込んだ測定データ、元素の選択、解析結果、プロット設定はブラウザーのIndexedDBに自動保存され、同じブラウザーで次回起動時に復元されます。保存状態はブラウザーとオリジンごとに分かれるため、ローカル環境、VercelのPreview URL、本番URLでは共有されません。右上の `Reset all` は保存済みのワークスペースを削除して初期状態へ戻します。
+Loaded measurement data, selected elements, analysis results, and plot settings are automatically saved to IndexedDB in the browser and restored the next time you open the app in the same browser.
 
-追加したXYファイルはブラウザー内で読み込まれ、IndexedDBに保存されます。このアプリは測定データをサーバーへアップロードしません。
+Saved state is separated by origin, so local development, Vercel Preview URLs, and the production URL do not share the same workspace. `Reset all` in the upper-right corner deletes the saved workspace and returns the app to its initial state.
 
-## XYファイル形式
+Added XY files are read in the browser and stored in IndexedDB. This app does not upload measurement data to the application server.
 
-次のようなコメントヘッダーと `energy counts/s` の2列データを含むテキスト形式を読み込みます。複数の `Region` を1ファイルに含めることができます。
+## XY File Format
+
+The app reads text files containing comment headers and two-column `energy counts/s` data. A single file can contain multiple `Region` sections.
 
 ```text
 # Group: Sample 1
@@ -90,20 +92,30 @@ python3 -m http.server 8000
 1199.9 1540.8
 ```
 
-## 注意事項
+## Notes and Disclaimer
 
-- 参照結合エネルギーは中性原子の値です。実際のピーク位置は化学状態、帯電、励起源、仕事関数などによって変化します。
-- 励起光エネルギーを超えるコア準位はグラフに表示されません。
-- このアプリの表示結果だけで元素や化学状態を確定せず、校正済みデータや文献値と併せて判断してください。
+- Reference binding energies are neutral-atom values. Actual peak positions can shift with chemical state, charging, excitation source, calibration, and work function.
+- Core levels above the current excitation photon energy are not shown in the plot.
+- Do not use this app alone for definitive elemental or chemical-state identification. Compare results with calibrated measurements, standards, and literature values.
 
-## プロジェクト構成
+## Privacy
 
-- `index.html`: アプリケーションのエントリーポイント
-- `assets/css/`: スタイル
-- `assets/js/`: アプリケーションロジックと結合エネルギーデータ
-- `docs/images/`: ドキュメント用画像
-- `vercel.json`: Vercelで静的サイトとして公開するための最小設定
+Measurement files are processed in your browser and saved locally in IndexedDB. The app does not upload XY files or generated analysis data to the application server.
 
-## ライセンス
+The public site uses Vercel Analytics for aggregate page usage metrics. File contents and locally saved measurement data are not sent by the app as analytics events.
 
-このプロジェクトは [MIT License](LICENSE) の下で公開されています。
+## Project Structure
+
+- `index.html`: application entry point
+- `assets/css/`: styles
+- `assets/js/`: application logic and binding-energy data
+- `docs/images/`: documentation images
+- `vercel.json`: minimal static-site configuration for Vercel
+
+## Repository
+
+<https://github.com/ISSP-Matsuda-lab/XPS-Explorer>
+
+## License
+
+This project is published under the [MIT License](LICENSE).
