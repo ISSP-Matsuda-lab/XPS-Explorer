@@ -267,3 +267,70 @@
     .dialog-actions .danger { border-color: #713846; color: #ff9aaa; background: #29151b; }
     .dialog-spacer { flex: 1; }
     @media (max-width: 1100px) { .app { padding: 18px; } .layout { grid-template-columns: 1fr 270px; } }
+    @media (max-width: 760px) {
+      body { min-width: 0; overflow-x: hidden; }
+      .app { width: 100%; padding: 10px; }
+      header { display: grid; gap: 10px; align-items: start; margin-bottom: 12px; }
+      h1 { font-size: 24px; }
+      .subtitle { font-size: 12px; }
+      .header-actions { justify-content: space-between; }
+      .layout { display: grid; grid-template-columns: 1fr; gap: 12px; }
+      .panel { border-radius: 10px; }
+      .toolbar { flex-wrap: wrap; align-items: stretch; padding: 10px; }
+      .toolbar strong { flex: 1 0 100%; }
+      .plot-layout-button { min-height: 38px; flex: 1 1 auto; }
+      .analysis-state-control { flex: 1 1 100%; align-items: stretch; }
+      .analysis-state-control select { min-width: 0; width: 100%; min-height: 40px; }
+      .plot-wrap { height: 310px; padding: 28px 8px 42px; }
+      .plot-help { display: none; }
+      .cursor-readout { top: 7px; left: 12px; font-size: 12px; }
+      .axis-label { width: 100%; font-size: 12px; text-align: center; }
+      .y-axis-label { left: 4px; font-size: 12px; }
+      .legend { flex-wrap: wrap; gap: 10px 16px; padding: 0 12px 12px; }
+      .source-bar { display: grid; grid-template-columns: 1fr 1fr; align-items: stretch; gap: 10px; padding: 10px; }
+      .source-bar label, .axis-control, .layer-control { min-width: 0; }
+      .source-bar select, .source-bar input { width: 100%; min-width: 0; height: 44px; font-size: 16px; }
+      .source-unit { display: none; }
+      .axis-control { grid-column: 1 / -1; margin-left: 0; }
+      .axis-control .segmented button { flex: 1; min-height: 38px; }
+      .layer-control { grid-column: 1 / -1; justify-content: flex-start; gap: 18px; min-height: 38px; }
+      .source-bar .layer-control .check { min-height: 38px; font-size: 13px; }
+      aside { padding: 12px; }
+      .selection { min-height: 120px; max-height: 220px; margin-top: 12px; }
+      .chip { min-height: 48px; }
+      .clear { min-height: 42px; }
+      .energy-details summary, .data-head { flex-wrap: wrap; align-items: center; padding: 11px 12px; }
+      .energy-details summary .hint, .data-head .hint { flex: 1 1 100%; margin: 0; }
+      .energy-tools { display: grid; grid-template-columns: 1fr; gap: 10px; padding: 10px; }
+      .energy-tools .segmented button { flex: 1; min-height: 38px; }
+      .energy-search-fields { display: grid; grid-template-columns: 1fr; gap: 10px; }
+      .energy-search-inputs input[type="number"], .energy-search-inputs input[type="range"] { flex: 1; width: auto; }
+      .energy-search-summary { margin-left: 0; white-space: normal; }
+      .energy-list { max-height: 300px; padding: 0 10px 12px; }
+      .energy-table th, .energy-table td { min-width: 82px; padding: 8px; }
+      .data-head .file-button { flex: 1 1 100%; min-height: 40px; display: grid; place-items: center; }
+      .data-browser { max-height: none; padding: 10px; }
+      .data-groups { padding: 0 8px 8px; }
+      .data-group-name { padding: 8px 2px 6px; }
+      .group-plot-actions { position: static; display: grid; grid-template-columns: 1fr 1fr; padding: 0 0 8px 22px; }
+      .group-plot-toggle { min-height: 36px; }
+      .data-series { padding-left: 0; }
+      .series-entry { grid-template-columns: 1fr; padding: 7px; }
+      .series-row { display: grid; grid-template-columns: 1fr auto; }
+      .series-option { min-width: 0; min-height: 42px; }
+      .series-row-actions button { min-width: 36px; min-height: 36px; }
+      .periodic-panel { padding: 12px; }
+      .periodic-head { align-items: start; flex-direction: column; gap: 4px; }
+      .periodic { grid-template-columns: repeat(18, minmax(36px, 1fr)); gap: 4px; overflow-x: auto; padding-bottom: 8px; }
+      .element { min-width: 36px; min-height: 38px; padding: 3px; }
+      .element .symbol { font-size: 13px; }
+      .plot-layout-dialog, .fit-dialog, .fit-style-dialog, .plot-offsets-dialog, .analysis-dialog { width: calc(100vw - 20px); max-height: calc(100vh - 20px); overflow: auto; }
+      .analysis-dialog form { padding: 14px; }
+      .plot-layout-body { grid-template-columns: 1fr; min-height: 0; }
+      .plot-layout-controls, .fit-style-fields, .offset-interval-fields, .legend-edit-fields { grid-template-columns: 1fr; }
+      .plot-color-control { grid-template-columns: 1fr; }
+      .fit-main-fields { grid-template-columns: 1fr; }
+      .fit-peak-row { grid-template-columns: 40px 1fr; }
+      .dialog-actions { flex-wrap: wrap; }
+      .dialog-actions button { min-height: 40px; }
+    }
