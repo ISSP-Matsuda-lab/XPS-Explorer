@@ -8,6 +8,7 @@
       --line: #254047;
       --accent: #77e4c8;
       --auger: #ffb45d;
+      --satellite: #f47fb3;
       --over-photon: #ff6f7f;
     }
     * { box-sizing: border-box; }
@@ -73,6 +74,7 @@
     .legend { display: flex; gap: 18px; padding: 0 22px 16px; color: var(--muted); font-size: 12px; }
     .legend i { display: inline-block; width: 16px; height: 2px; margin: 0 6px 3px 0; background: var(--accent); }
     .legend .auger { height: 0; background: transparent; border-top: 2px dashed var(--auger); }
+    .legend .satellite { height: 0; background: transparent; border-top: 2px dotted var(--satellite); }
     .periodic-panel { grid-column: 1 / -1; padding: 18px; }
     .energy-details { grid-column: 1 / -1; overflow: hidden; }
     .energy-details summary { display: flex; align-items: center; gap: 10px; padding: 13px 18px; cursor: pointer; list-style: none; }

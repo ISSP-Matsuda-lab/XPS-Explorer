@@ -57,6 +57,12 @@
       Pb:[['NOO',95.80]],
       Bi:[['MNN',2229.30],['NOO',103.60]]
     };
+    // X-ray source satellite replicas, derived from XDB principal emission
+    // line energies. Values are apparent binding-energy offsets from K-alpha.
+    const satelliteSources = [
+      {source:'Al Kβ1',photon:1486.6,lineEnergy:1557.45},
+      {source:'Mg Kβ1',photon:1253.6,lineEnergy:1302.2}
+    ];
     const peaks = Object.fromEntries(Object.entries(coreLevels).map(([symbol, core]) => [symbol, {core, auger: augerLevels[symbol] || []}]));
     const symbols = ['H','He','Li','Be','B','C','N','O','F','Ne','Na','Mg','Al','Si','P','S','Cl','Ar','K','Ca','Sc','Ti','V','Cr','Mn','Fe','Co','Ni','Cu','Zn','Ga','Ge','As','Se','Br','Kr','Rb','Sr','Y','Zr','Nb','Mo','Tc','Ru','Rh','Pd','Ag','Cd','In','Sn','Sb','Te','I','Xe','Cs','Ba','La','Ce','Pr','Nd','Pm','Sm','Eu','Gd','Tb','Dy','Ho','Er','Tm','Yb','Lu','Hf','Ta','W','Re','Os','Ir','Pt','Au','Hg','Tl','Pb','Bi','Po','At','Rn','Fr','Ra','Ac','Th','Pa','U','Np','Pu','Am','Cm','Bk','Cf','Es','Fm','Md','No','Lr','Rf','Db','Sg','Bh','Hs','Mt','Ds','Rg','Cn','Nh','Fl','Mc','Lv','Ts','Og'];
     // Correct standard table coordinates explicitly for periods 4–7; lanthanides/actinides appear in separate rows.
@@ -72,7 +78,7 @@
     const ANALYSIS_CODES={constant:'bg',height:'nh',area:'na'};
     const selected = new Map(), dataFiles = [], selectedSpectra = new Set(), analysisSnapshots = new Map(), plotOrder=[], layoutSelection=new Set(), layoutDirty=new Set(); let mode='binding', energyTableMode='selected', photon=1486.6, workFunction=4.5, includeHigherOrderExcitation=false, zoomDomain=null, zoomYDomain=null, plotScale=null, dragStart=null, dragSelection=null, offsetDrag=null, pendingAnalysis=null, activeAnalysis='raw', nextSpectrumId=0, analysisMessageTimer=null, storageReady=false, saveTimer=null, storageDatabase=null, plotLegendState={visible:false,x:.72,y:.12,entries:{}}, legendDrag=null, editingLegendId=null, focusedSpectrumId=null;
     const periodic=document.querySelector('#periodic'), selection=document.querySelector('#selection'), svg=document.querySelector('#plot'), tip=document.querySelector('#tooltip'), photonPreset=document.querySelector('#photonPreset'), photonEnergy=document.querySelector('#photonEnergy'), workFunctionInput=document.querySelector('#workFunction');
-    const bindingButton=document.querySelector('#binding'), kineticButton=document.querySelector('#kinetic'), showCoreInput=document.querySelector('#showCore'), showAugerInput=document.querySelector('#showAuger'), axisLabelElement=document.querySelector('#axisLabel'), clearButton=document.querySelector('#clear');
+    const bindingButton=document.querySelector('#binding'), kineticButton=document.querySelector('#kinetic'), showCoreInput=document.querySelector('#showCore'), showAugerInput=document.querySelector('#showAuger'), showSatelliteInput=document.querySelector('#showSatellite'), axisLabelElement=document.querySelector('#axisLabel'), clearButton=document.querySelector('#clear');
     const cursorReadout=document.querySelector('#cursorReadout'), yAxisLabel=document.querySelector('#yAxisLabel'), energyList=document.querySelector('#energyList'), energyDetailsTitle=document.querySelector('#energyDetailsTitle'), energyDetailsHint=document.querySelector('#energyDetailsHint'), selectedEnergyMode=document.querySelector('#selectedEnergyMode'), searchEnergyMode=document.querySelector('#searchEnergyMode'), energySearchFields=document.querySelector('#energySearchFields'), peakEnergyInput=document.querySelector('#peakEnergy'), peakEnergyRange=document.querySelector('#peakEnergyRange'), energyToleranceInput=document.querySelector('#energyTolerance'), energyToleranceRange=document.querySelector('#energyToleranceRange'), firstOrderOnlyButton=document.querySelector('#firstOrderOnly'), includeHigherOrdersButton=document.querySelector('#includeHigherOrders'), energySearchSummary=document.querySelector('#energySearchSummary'), dataBrowser=document.querySelector('#dataBrowser'), xyFiles=document.querySelector('#xyFiles'), fileButton=document.querySelector('.file-button'), dragMenu=document.querySelector('#dragMenu'), analysisState=document.querySelector('#analysisState'), analysisMessage=document.querySelector('#analysisMessage'), analysisDialog=document.querySelector('#analysisDialog'), analysisForm=document.querySelector('#analysisForm'), analysisDialogTitle=document.querySelector('#analysisDialogTitle'), analysisEnergyMin=document.querySelector('#analysisEnergyMin'), analysisEnergyMax=document.querySelector('#analysisEnergyMax'), analysisDialogError=document.querySelector('#analysisDialogError'), resetAllButton=document.querySelector('#resetAll'), energyDetails=document.querySelector('#energyDetails'), dataPanel=document.querySelector('.data-panel');
     const plotLayoutButton=document.querySelector('#plotLayoutButton'), plotLayoutDialog=document.querySelector('#plotLayoutDialog'), plotLayoutForm=document.querySelector('#plotLayoutForm'), plotLayoutEmpty=document.querySelector('#plotLayoutEmpty'), plotLayoutBody=document.querySelector('#plotLayoutBody'), plotLayoutControls=document.querySelector('#plotLayoutControls'), plotSeriesList=document.querySelector('#plotSeriesList'), plotSelectionCount=document.querySelector('#plotSelectionCount'), plotSelectAll=document.querySelector('#plotSelectAll'), plotSelectNone=document.querySelector('#plotSelectNone'), plotRenderMode=document.querySelector('#plotRenderMode'), plotLineStyle=document.querySelector('#plotLineStyle'), plotLineWidth=document.querySelector('#plotLineWidth'), plotColor=document.querySelector('#plotColor'), plotColorPresets=document.querySelector('#plotColorPresets'), plotXOffset=document.querySelector('#plotXOffset'), plotYOffset=document.querySelector('#plotYOffset'), plotMarkerSize=document.querySelector('#plotMarkerSize'), plotMarkerStrokeWidth=document.querySelector('#plotMarkerStrokeWidth'), plotMarkerFilled=document.querySelector('#plotMarkerFilled'), plotMarkerShape=document.querySelector('#plotMarkerShape'), plotHidden=document.querySelector('#plotHidden'), plotStyleReset=document.querySelector('#plotStyleReset');
     const plotOffsetsButton=document.querySelector('#plotOffsetsButton'), plotOffsetsDialog=document.querySelector('#plotOffsetsDialog'), plotOffsetsForm=document.querySelector('#plotOffsetsForm'), plotXOffsetStep=document.querySelector('#plotXOffsetStep'), plotYOffsetStep=document.querySelector('#plotYOffsetStep'), plotOffsetsError=document.querySelector('#plotOffsetsError'), plotLegendButton=document.querySelector('#plotLegendButton'), plotLegend=document.querySelector('#plotLegend'), legendEditDialog=document.querySelector('#legendEditDialog'), legendEditForm=document.querySelector('#legendEditForm'), legendItemName=document.querySelector('#legendItemName'), legendItemFontSize=document.querySelector('#legendItemFontSize'), deleteLegendItem=document.querySelector('#deleteLegendItem');
@@ -85,7 +91,7 @@
     async function readStoredWorkspace(){const db=await openStorage();return new Promise((resolve,reject)=>{const request=db.transaction(STORAGE_STORE,'readonly').objectStore(STORAGE_STORE).get(STORAGE_KEY);request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error)})}
     function workspaceState(){return{
       version:2,selected:[...selected],dataFiles,selectedSpectra:[...selectedSpectra],analysisSnapshots:[...analysisSnapshots].map(([id,snapshot])=>[id,{...snapshot,points:[...snapshot.points]}]),activeAnalysis,nextSpectrumId,
-      ui:{mode,energyTableMode,photon,workFunction,includeHigherOrderExcitation,zoomDomain,zoomYDomain,plotOrder:[...plotOrder],plotLegend:plotLegendState,showCore:showCoreInput.checked,showAuger:showAugerInput.checked,peakEnergy:peakEnergyInput.value,energyTolerance:energyToleranceInput.value,energyDetailsOpen:energyDetails.open,dataPanelOpen:dataPanel.open}
+      ui:{mode,energyTableMode,photon,workFunction,includeHigherOrderExcitation,zoomDomain,zoomYDomain,plotOrder:[...plotOrder],plotLegend:plotLegendState,showCore:showCoreInput.checked,showAuger:showAugerInput.checked,showSatellite:showSatelliteInput.checked,peakEnergy:peakEnergyInput.value,energyTolerance:energyToleranceInput.value,energyDetailsOpen:energyDetails.open,dataPanelOpen:dataPanel.open}
     }}
     async function persistWorkspace(){
       if(!storageReady)return;
@@ -99,7 +105,7 @@
       analysisSnapshots.clear();(state.analysisSnapshots||[]).forEach(([id,snapshot])=>analysisSnapshots.set(id,{...snapshot,points:new Map(snapshot.points||[])}));
       activeAnalysis=state.activeAnalysis==='raw'||analysisSnapshots.has(state.activeAnalysis)?state.activeAnalysis:'raw';nextSpectrumId=Number.isInteger(state.nextSpectrumId)?state.nextSpectrumId:0;
       const ui=state.ui||{};mode=ui.mode==='kinetic'?'kinetic':'binding';energyTableMode=ui.energyTableMode==='search'?'search':'selected';photon=Number.isFinite(ui.photon)&&ui.photon>0?ui.photon:1486.6;workFunction=Number.isFinite(ui.workFunction)&&ui.workFunction>=0?ui.workFunction:4.5;includeHigherOrderExcitation=Boolean(ui.includeHigherOrderExcitation);zoomDomain=Array.isArray(ui.zoomDomain)?ui.zoomDomain:null;zoomYDomain=Array.isArray(ui.zoomYDomain)?ui.zoomYDomain:null;plotOrder.splice(0,plotOrder.length,...(Array.isArray(ui.plotOrder)?ui.plotOrder:[]));normalizePlotOrder();plotLegendState=normalizeLegendState(ui.plotLegend);
-      showCoreInput.checked=ui.showCore!==false;showAugerInput.checked=Boolean(ui.showAuger);photonEnergy.value=String(photon);const preset=[...photonPreset.options].find(option=>option.value!=='custom'&&Number(option.value)===photon);photonPreset.value=preset?preset.value:'custom';workFunctionInput.value=String(workFunction);peakEnergyInput.value=ui.peakEnergy??'285.0';energyToleranceInput.value=ui.energyTolerance??'0.5';energyDetails.open=ui.energyDetailsOpen!==false;dataPanel.open=ui.dataPanelOpen!==false;
+      showCoreInput.checked=ui.showCore!==false;showAugerInput.checked=Boolean(ui.showAuger);showSatelliteInput.checked=Boolean(ui.showSatellite);photonEnergy.value=String(photon);const preset=[...photonPreset.options].find(option=>option.value!=='custom'&&Number(option.value)===photon);photonPreset.value=preset?preset.value:'custom';workFunctionInput.value=String(workFunction);peakEnergyInput.value=ui.peakEnergy??'285.0';energyToleranceInput.value=ui.energyTolerance??'0.5';energyDetails.open=ui.energyDetailsOpen!==false;dataPanel.open=ui.dataPanelOpen!==false;
       document.querySelectorAll('.element').forEach(button=>button.classList.toggle('selected',selected.has(button.querySelector('.symbol').textContent)));bindingButton.classList.toggle('active',mode==='binding');kineticButton.classList.toggle('active',mode==='kinetic');axisLabelElement.textContent=mode==='binding'?'Binding energy (eV) — high to low':'Kinetic energy (eV) — low to high';firstOrderOnlyButton.classList.toggle('active',!includeHigherOrderExcitation);includeHigherOrdersButton.classList.toggle('active',includeHigherOrderExcitation);
       return true;
     }
@@ -109,12 +115,29 @@
     function render(){ renderSelection(); renderEnergyDetails(); renderPlot(); }
     function renderSelection(){
       selection.innerHTML=selected.size?'':'<div class="empty">Select an element in the periodic table<br>to display its peak lines</div>';
-      selected.forEach((item,s)=>{ const d=document.createElement('div'); d.className='chip'+(item.visible?'':' off'); d.setAttribute('role','button'); d.tabIndex=0; d.setAttribute('aria-pressed',String(item.visible)); d.title=`${item.visible?'Hide':'Show'} ${s} in the plot`; d.innerHTML=`<i class="swatch" style="background:${item.color}"></i><div><strong>${s}</strong><small>${item.visible?'Visible':'Hidden'} · ${peaks[s].core.length} core · ${peaks[s].auger.length} Auger</small></div><button class="remove" aria-label="Remove ${s} from selection" title="Remove from selection">×</button>`;
+      selected.forEach((item,s)=>{ const d=document.createElement('div'); d.className='chip'+(item.visible?'':' off'); d.setAttribute('role','button'); d.tabIndex=0; d.setAttribute('aria-pressed',String(item.visible)); d.title=`${item.visible?'Hide':'Show'} ${s} in the plot`; d.innerHTML=`<i class="swatch" style="background:${item.color}"></i><div><strong>${s}</strong><small>${item.visible?'Visible':'Hidden'} · ${peaks[s].core.length} core · ${peaks[s].auger.length} Auger · ${satelliteLevels(s).length} Satellite</small></div><button class="remove" aria-label="Remove ${s} from selection" title="Remove from selection">×</button>`;
         const switchVisibility=()=>{item.visible=!item.visible;render()}; d.onclick=switchVisibility; d.onkeydown=e=>{if(!e.target.closest('.remove')&&(e.key==='Enter'||e.key===' ')){e.preventDefault();switchVisibility()}}; d.querySelector('.remove').onclick=e=>{e.stopPropagation();toggle(s,elementButton(s))}; selection.append(d);
       });
     }
     function elementButton(s){return [...periodic.children].find(x=>x.querySelector('.symbol').textContent===s)}
-    function displayedEnergy(raw,type){return (mode==='kinetic'&&type==='core')||(mode==='binding'&&type==='auger')?photon-raw-workFunction:raw}
+    function activeSatelliteSource(){return satelliteSources.find(source=>Math.abs(photon-source.photon)<.25)}
+    function satelliteLevels(symbol){
+      const source=activeSatelliteSource();
+      if(!source)return[];
+      const offset=source.lineEnergy-source.photon;
+      return peaks[symbol].core.map(([level,bindingEnergy])=>[`${level} ${source.source}`,bindingEnergy-offset]).filter(([,bindingEnergy])=>bindingEnergy>=0);
+    }
+    function displayedEnergy(raw,type){
+      const bindingLike=type==='core'||type==='satellite';
+      return (mode==='kinetic'&&bindingLike)||(mode==='binding'&&type==='auger')?photon-raw-workFunction:raw
+    }
+    function peakTypeLabel(){
+      const labels=[];
+      if(showCoreInput.checked)labels.push('Core');
+      if(showAugerInput.checked)labels.push('Auger');
+      if(showSatelliteInput.checked)labels.push('Satellite');
+      return labels.length?labels.join(' + '):'None';
+    }
     function searchedCoreEnergy(bindingEnergy,order){
       const excitation=photon*order;
       if(bindingEnergy+workFunction>excitation)return null;
@@ -124,15 +147,15 @@
     function orbitalOrder(label){const match=label.match(/^(\d+)([spdf])(\d+\/\d+)?$/i);if(!match)return [99,label];const subshell={s:0,p:1,d:2,f:3}[match[2].toLowerCase()];const spin=match[3]||'';return [Number(match[1])*10+subshell,spin]}
     function compareOrbitals(a,b){const aa=orbitalOrder(a),bb=orbitalOrder(b);return aa[0]-bb[0]||aa[1].localeCompare(bb[1],undefined,{numeric:true})}
     function renderEnergyDetails(){
-      const modeLabel=mode==='binding'?'Binding energy':'Kinetic energy'; energyDetailsTitle.textContent=`${modeLabel} values`; energyDetailsHint.textContent=`${showCoreInput.checked?'Core':''}${showCoreInput.checked&&showAugerInput.checked?' + ':''}${showAugerInput.checked?'Auger':''} · ${photon.toLocaleString()} eV source · φ ${workFunction.toLocaleString()} eV`;
+      const modeLabel=mode==='binding'?'Binding energy':'Kinetic energy'; energyDetailsTitle.textContent=`${modeLabel} values`; energyDetailsHint.textContent=`${peakTypeLabel()} · ${photon.toLocaleString()} eV source · φ ${workFunction.toLocaleString()} eV`;
       energyList.innerHTML='';
       energySearchFields.hidden=energyTableMode!=='search';
       selectedEnergyMode.classList.toggle('active',energyTableMode==='selected');searchEnergyMode.classList.toggle('active',energyTableMode==='search');
       if(energyTableMode==='search'){renderEnergySearch(modeLabel);return}
       energySearchSummary.textContent='';
       if(!selected.size){energyList.innerHTML='<div class="empty">Select an element to display its energy values</div>';return}
-      const rows=[];selected.forEach((item,s)=>{if(showCoreInput.checked)rows.push({item,s,kind:'Core',type:'core',values:peaks[s].core});if(showAugerInput.checked&&peaks[s].auger.length)rows.push({item,s,kind:'Auger',type:'auger',values:peaks[s].auger})});
-      if(!rows.length){energyList.innerHTML='<div class="empty">Enable Core or Auger peaks</div>';return}
+      const rows=[];selected.forEach((item,s)=>{if(showCoreInput.checked)rows.push({item,s,kind:'Core',type:'core',values:peaks[s].core});if(showAugerInput.checked&&peaks[s].auger.length)rows.push({item,s,kind:'Auger',type:'auger',values:peaks[s].auger});const satellites=satelliteLevels(s);if(showSatelliteInput.checked&&satellites.length)rows.push({item,s,kind:'Satellite',type:'satellite',values:satellites})});
+      if(!rows.length){energyList.innerHTML='<div class="empty">Enable Core, Auger, or Satellite peaks</div>';return}
       const labels=[...new Set(rows.flatMap(row=>row.values.map(([label])=>label)))].sort(compareOrbitals);
       const table=document.createElement('table');table.className='energy-table';
       table.innerHTML=`<thead><tr><th scope="col">Element</th><th scope="col">Type</th>${labels.map(label=>`<th scope="col">${label}</th>`).join('')}</tr></thead>`;
@@ -146,15 +169,16 @@
       Object.entries(peaks).forEach(([symbol,data])=>{
         if(showCoreInput.checked)data.core.forEach(([level,raw])=>{(includeHigherOrderExcitation?[1,2,3]:[1]).forEach(order=>{const energy=searchedCoreEnergy(raw,order);if(energy!=null&&energy>=0&&Math.abs(energy-target)<=tolerance)matches.push({symbol,kind:'Core',level,order,energy,difference:energy-target})})});
         if(showAugerInput.checked)data.auger.forEach(([level,raw])=>{const energy=displayedEnergy(raw,'auger');if(energy>=0&&Math.abs(energy-target)<=tolerance)matches.push({symbol,kind:'Auger',level,order:null,energy,difference:energy-target})});
+        if(showSatelliteInput.checked)satelliteLevels(symbol).forEach(([level,raw])=>{const energy=displayedEnergy(raw,'satellite');if(energy>=0&&Math.abs(energy-target)<=tolerance)matches.push({symbol,kind:'Satellite',level,order:null,energy,difference:energy-target})});
       });
       matches.sort((a,b)=>Math.abs(a.difference)-Math.abs(b.difference)||a.energy-b.energy||(a.order||0)-(b.order||0)||symbols.indexOf(a.symbol)-symbols.indexOf(b.symbol));
       energySearchSummary.textContent=`${target.toFixed(1)} ± ${tolerance.toFixed(1)} eV · ${matches.length.toLocaleString()} matches`;
-      if(!showCoreInput.checked&&!showAugerInput.checked){energyList.innerHTML='<div class="empty">Enable Core or Auger peaks</div>';return}
+      if(!showCoreInput.checked&&!showAugerInput.checked&&!showSatelliteInput.checked){energyList.innerHTML='<div class="empty">Enable Core, Auger, or Satellite peaks</div>';return}
       if(!matches.length){energyList.innerHTML='<div class="empty">No elements match the specified range</div>';return}
       const table=document.createElement('table');table.className='energy-table energy-search-table';
       table.innerHTML='<thead><tr><th scope="col">Element</th><th scope="col">Type</th><th scope="col">Level / transition</th><th scope="col">Excitation</th><th scope="col">Energy</th><th scope="col">Difference</th></tr></thead>';
       const body=document.createElement('tbody');matches.forEach(({symbol,kind,level,order,energy,difference})=>{const row=document.createElement('tr'),atomicNumber=symbols.indexOf(symbol)+1;const excitation=order?`Order ${order} (${(photon*order).toFixed(1)} eV)`:'—';row.innerHTML=`<th scope="row" style="color:${elementColor(symbol)}">${symbol}<sup class="atomic-number">${atomicNumber}</sup></th><td>${kind}</td><td>${level}</td><td>${excitation}</td><td><span class="energy-value">${energy.toFixed(1)} eV</span></td><td>${difference>=0?'+':''}${difference.toFixed(1)} eV</td>`;body.append(row)});table.append(body);energyList.append(table);
-      const note=document.createElement('p');note.className='energy-legend';note.textContent=`Searching ${modeLabel.toLowerCase()} · Core uses ${includeHigherOrderExcitation?'first- to third-order':'first-order'} excitation; Auger uses order-independent kinetic energy`;energyList.append(note);
+      const note=document.createElement('p');note.className='energy-legend';note.textContent=`Searching ${modeLabel.toLowerCase()} · Core uses ${includeHigherOrderExcitation?'first- to third-order':'first-order'} excitation; Auger uses order-independent kinetic energy; Satellite uses source-dependent apparent binding energy`;energyList.append(note);
     }
     function axisScale(value){ const rough=Math.max(value/8,1e-9), power=10**Math.floor(Math.log10(rough)), fraction=rough/power, step=(fraction<=1?1:fraction<=2?2:fraction<=5?5:10)*power; return {step,max:Math.ceil(value/step)*step}; }
     function dataColor(index){const colors=['#62c9f5','#d88cff','#ff8e77','#7de0a3','#ffd166','#8aa8ff','#f47fb3','#64d8cb'];return colors[index%colors.length]}
@@ -308,7 +332,7 @@
       svg.append(node('line',{x1:left,y1:H-bottom,x2:W-right,y2:H-bottom,stroke:'#426069'}));
       if(yDomain){drawSpectra(spectra,x,y);drawFitOverlays(fitOverlays,x,y)}
       const active=[...selected].filter(([,item])=>item.visible); if(!active.length&&!spectra.length){const t=node('text',{x:W/2,y:H/2,fill:'#607d7a','font-size':13,'text-anchor':'middle'});t.textContent=selectedData().length?'Measurement plots are hidden':selected.size?'Selected elements are hidden':'Select an element or measurement data';svg.append(t)}
-      let ci=0; active.forEach(([s,item])=>{ const all=[]; if(showCoreInput.checked)peaks[s].core.forEach(p=>all.push([...p,'core'])); if(showAugerInput.checked)peaks[s].auger.forEach(p=>all.push([...p,'auger'])); all.forEach(([label,raw,type],j)=>{ const e=displayedEnergy(raw,type); if(e<domain[0]||e>domain[1]||e<0||e>photon)return; const xx=x(e),dash=type==='auger'?'5 4':'0',l=node('line',{x1:xx,y1:top+(ci%12)*3,x2:xx,y2:H-bottom,stroke:type==='auger'?'#ffb45d':item.color,'stroke-width':2,'stroke-dasharray':dash,opacity:.9});l.onmouseenter=ev=>showPeakTip(ev,s,label,e,raw,type);l.onmousemove=ev=>showPeakTip(ev,s,label,e,raw,type);l.onmouseleave=()=>tip.style.display='none';svg.append(l);const t=node('text',{x:xx+4,y:21+((j+ci)%7)*17,fill:type==='auger'?'#ffb45d':item.color,'font-size':12,'font-weight':650});t.textContent=`${s} ${label}`;svg.append(t)});ci++});
+      let ci=0; active.forEach(([s,item])=>{ const all=[]; if(showCoreInput.checked)peaks[s].core.forEach(p=>all.push([...p,'core'])); if(showAugerInput.checked)peaks[s].auger.forEach(p=>all.push([...p,'auger'])); if(showSatelliteInput.checked)satelliteLevels(s).forEach(p=>all.push([...p,'satellite'])); all.forEach(([label,raw,type],j)=>{ const e=displayedEnergy(raw,type); if(e<domain[0]||e>domain[1]||e<0||e>photon)return; const xx=x(e),dash=type==='auger'?'5 4':type==='satellite'?'2 4':'0',lineColor=type==='auger'?'#ffb45d':type==='satellite'?'#f47fb3':item.color,l=node('line',{x1:xx,y1:top+(ci%12)*3,x2:xx,y2:H-bottom,stroke:lineColor,'stroke-width':2,'stroke-dasharray':dash,opacity:.9});l.onmouseenter=ev=>showPeakTip(ev,s,label,e,raw,type);l.onmousemove=ev=>showPeakTip(ev,s,label,e,raw,type);l.onmouseleave=()=>tip.style.display='none';svg.append(l);const t=node('text',{x:xx+4,y:21+((j+ci)%7)*17,fill:lineColor,'font-size':12,'font-weight':650});t.textContent=`${s} ${label}`;svg.append(t)});ci++});
       renderPlotLegend();schedulePersist();
     }
     function showPeakTip(ev,s,label,e,raw,type){tip.style.display='block';tip.style.left=ev.clientX+12+'px';tip.style.top=ev.clientY+12+'px';tip.innerHTML=`<b>${s} ${label}</b><br>${e.toFixed(1)} eV · ${mode==='binding'?'binding':'kinetic'}<br>Reference ${raw.toFixed(1)} eV · ${type}`}
@@ -403,7 +427,7 @@
     photonEnergy.oninput=()=>{ const exact=[...photonPreset.options].find(option=>option.value!=='custom'&&Number(option.value)===Number(photonEnergy.value)); photonPreset.value=exact?exact.value:'custom'; updatePhoton(); };
     function updatePhoton(){ const value=Number(photonEnergy.value); if(!Number.isFinite(value)||value<=0)return; photon=value;zoomDomain=null;zoomYDomain=null;updateSearchSliderBounds();renderEnergyDetails();renderPlot(); }
     workFunctionInput.oninput=()=>{const value=workFunctionInput.valueAsNumber;if(!Number.isFinite(value)||value<0)return;workFunction=value;zoomDomain=null;zoomYDomain=null;renderEnergyDetails();renderPlot()};
-    showCoreInput.onchange=showAugerInput.onchange=()=>{renderEnergyDetails();renderPlot()}; clearButton.onclick=()=>{selected.clear();document.querySelectorAll('.element.selected').forEach(x=>x.classList.remove('selected'));render()};
+    showCoreInput.onchange=showAugerInput.onchange=showSatelliteInput.onchange=()=>{renderEnergyDetails();renderPlot()}; clearButton.onclick=()=>{selected.clear();document.querySelectorAll('.element.selected').forEach(x=>x.classList.remove('selected'));render()};
     fileButton.onclick=event=>event.stopPropagation();
     xyFiles.onchange=async()=>{for(const file of xyFiles.files){try{addDataFile(file.name,await file.text())}catch(error){const message=document.createElement('div');message.className='data-error';message.textContent=`${file.name}: ${error.message}`;dataBrowser.prepend(message)}}xyFiles.value=''};
     energyDetails.ontoggle=dataPanel.ontoggle=schedulePersist;
