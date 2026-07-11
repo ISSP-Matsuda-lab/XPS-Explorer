@@ -6,6 +6,10 @@ The basic workflow is to select elements from the periodic table at the bottom o
 
 The app includes neutral-atom core levels and Auger transitions from H to U. It supports Al K-alpha, Mg K-alpha, and custom excitation photon energies. Neutral-atom binding energies are based on the LBNL X-Ray Data Booklet (XDB). Auger kinetic energies prefer recommended elemental reference data from the NIST X-ray Photoelectron Spectroscopy Database (SRD 20), supplemented by XDB Principal Auger Electron Energies where representative lines are not covered.
 
+## Online URL
+
+<https://corelevel-explorer.vercel.app/>
+
 ## Running Locally
 
 No build step or package installation is required. Start a local HTTP server from the repository root:
