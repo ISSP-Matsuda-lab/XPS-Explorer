@@ -26,7 +26,7 @@
           </label>
         </div>
         <div class="plot-wrap"><div id="cursorReadout" class="cursor-readout">Cursor: — eV</div><div class="plot-help">Ctrl+drag a spectrum to offset · Shift+click to locate its data row · Drag for actions · Double-click to autoscale</div><svg id="plot" role="img" aria-label="XPS peak energy and intensity plot"></svg><div id="plotLegend" class="plot-legend" hidden></div><div id="dragMenu" class="drag-menu" hidden><button type="button" data-action="zoom-xy">Zoom both axes</button><button type="button" data-action="zoom-x">Zoom horizontal axis</button><button type="button" data-action="zoom-y">Zoom vertical axis</button><div class="drag-menu-separator"></div><button type="button" data-action="constant">Constant background</button><button type="button" data-action="height">Normalize height</button><button type="button" data-action="area">Normalize area</button></div><div id="analysisMessage" class="analysis-message" role="status" aria-live="polite" hidden></div><div id="axisLabel" class="axis-label">Binding energy (eV) — high to low</div><div id="yAxisLabel" class="y-axis-label" hidden>Intensity (counts/s)</div></div>
-        <div class="legend"><span><i></i>Core level</span><span><i class="auger"></i>Auger transition</span><span><i class="satellite"></i>Satellite peak</span></div>
+        <div class="legend"><span><i></i>Core level</span><span><i class="auger"></i>Auger transition</span></div>
         <div class="source-bar">
           <label>Excitation source
             <select id="photonPreset" aria-label="Excitation source preset">
@@ -50,7 +50,6 @@
           <div class="layer-control" aria-label="Peak types to display">
             <label class="check"><input id="showCore" type="checkbox" checked /> Core</label>
             <label class="check"><input id="showAuger" type="checkbox" /> Auger</label>
-            <label class="check"><input id="showSatellite" type="checkbox" /> Satellite</label>
           </div>
         </div>
       </section>
