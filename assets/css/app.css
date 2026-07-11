@@ -266,6 +266,7 @@
     .offset-interval-fields input:focus, .legend-edit-fields input:focus { border-color: var(--accent); }
     .dialog-actions .danger { border-color: #713846; color: #ff9aaa; background: #29151b; }
     .dialog-spacer { flex: 1; }
+    .mobile-autoscale-button { display: none; }
     @media (max-width: 1100px) { .app { padding: 18px; } .layout { grid-template-columns: 1fr 270px; } }
     @media (max-width: 760px) {
       body {
@@ -290,13 +291,17 @@
       .data-panel { order: 5; }
       .panel { min-width: 0; border-radius: 10px; }
       .toolbar { flex-wrap: wrap; align-items: stretch; padding: 10px; }
-      .toolbar strong { flex: 1 0 100%; }
+      .toolbar strong { flex: 1 1 auto; align-self: center; }
+      #plotLegendButton, #plotOffsetsButton, #plotLayoutButton, .analysis-state-control { display: none; }
       .plot-layout-button { min-height: 38px; flex: 1 1 auto; }
+      .mobile-autoscale-button { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; min-height: 38px; }
       .analysis-state-control { flex: 1 1 100%; align-items: stretch; }
       .analysis-state-control select { min-width: 0; width: 100%; min-height: 40px; }
-      .plot-wrap { height: 310px; padding: 28px 8px 42px; }
+      .plot-wrap { height: 310px; padding: 12px 8px 42px; touch-action: none; }
+      #plot { touch-action: none; }
       .plot-help { display: none; }
-      .cursor-readout { top: 7px; left: 12px; font-size: 12px; }
+      .cursor-readout { display: none; }
+      .drag-menu { display: none !important; }
       .axis-label { width: 100%; font-size: 12px; text-align: center; }
       .y-axis-label { left: 4px; font-size: 12px; }
       .legend { flex-wrap: wrap; gap: 10px 16px; padding: 0 12px 12px; }
@@ -321,6 +326,7 @@
       .energy-search-summary { margin-left: 0; white-space: normal; }
       .energy-list { max-height: 300px; padding: 0 10px 12px; }
       .energy-table th, .energy-table td { min-width: 82px; padding: 8px; }
+      .data-panel { display: none; }
       .data-head .file-button { flex: 1 1 100%; min-height: 40px; display: grid; place-items: center; }
       .data-browser { max-height: none; padding: 10px; }
       .data-groups { padding: 0 8px 8px; }
