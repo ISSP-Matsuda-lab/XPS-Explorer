@@ -102,38 +102,33 @@
         <div id="periodic" class="periodic"></div>
       </section>
     </div>
-    <footer class="site-footer" aria-labelledby="publicationNotesTitle">
-      <div class="footer-head">
-        <h2 id="publicationNotesTitle">Publication notes</h2>
-        <span>Reference data, privacy, disclaimer, and license information for public use.</span>
-      </div>
-      <div class="footer-details">
-        <details class="footer-detail">
-          <summary>Data sources</summary>
-          <div class="footer-detail-body">
+    <footer class="site-footer">
+      <details class="footer-disclosure">
+        <summary>
+          <span class="footer-title">Publication notes</span>
+          <span class="footer-summary">Reference data, privacy, disclaimer, license, and repository information for public use.</span>
+        </summary>
+        <div class="footer-details">
+          <section class="footer-detail" aria-labelledby="dataSourcesTitle">
+            <h3 id="dataSourcesTitle">Data sources</h3>
             <p>Neutral-atom binding energies are based on the Lawrence Berkeley National Laboratory <a href="https://xdb.lbl.gov/" target="_blank" rel="noreferrer">X-Ray Data Booklet</a>. Auger kinetic energies use <a href="https://srdata.nist.gov/xps/" target="_blank" rel="noreferrer">NIST X-ray Photoelectron Spectroscopy Database (SRD 20)</a> recommended elemental reference data where available, supplemented by XDB principal Auger electron energies.</p>
-          </div>
-        </details>
-        <details class="footer-detail">
-          <summary>Privacy</summary>
-          <div class="footer-detail-body">
+          </section>
+          <section class="footer-detail" aria-labelledby="privacyTitle">
+            <h3 id="privacyTitle">Privacy</h3>
             <p>Measurement files are processed in your browser and saved locally in IndexedDB with the selected elements, analysis states, and plot settings. This app does not upload XY files or generated analysis data to the application server.</p>
             <p>This site uses Vercel Analytics for aggregate page usage metrics. File contents and locally saved measurement data are not sent by the app as analytics events.</p>
-          </div>
-        </details>
-        <details class="footer-detail">
-          <summary>Disclaimer</summary>
-          <div class="footer-detail-body">
+          </section>
+          <section class="footer-detail" aria-labelledby="disclaimerTitle">
+            <h3 id="disclaimerTitle">Disclaimer</h3>
             <p>Values shown here are reference data only. Peak positions may vary with chemical state, charging, calibration, excitation source, and work function. Do not use this tool alone for definitive elemental or chemical-state identification; compare with calibrated measurements, standards, and literature values.</p>
-          </div>
-        </details>
-        <details class="footer-detail">
-          <summary>License</summary>
-          <div class="footer-detail-body">
+          </section>
+          <section class="footer-detail" aria-labelledby="licenseTitle">
+            <h3 id="licenseTitle">License</h3>
             <p>This project is published under the <a href="LICENSE">MIT License</a>. Copyright © 2026 Masashige-Miyamoto.</p>
-          </div>
-        </details>
-      </div>
+            <p>Repository: <a href="https://github.com/ISSP-Matsuda-lab/XPS-Explorer" target="_blank" rel="noreferrer">ISSP-Matsuda-lab/XPS-Explorer</a></p>
+          </section>
+        </div>
+      </details>
     </footer>
   </main>
   <div id="tooltip" class="tooltip"></div>
