@@ -6,10 +6,38 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta
   name="description"
-  content="Search X-ray photoelectron spectroscopy (XPS) core-level binding energies and review possible elemental and orbital assignments using a browser-based database."
+  content="Search an XPS binding energy database for core-level peaks, Auger transitions, and possible elemental peak assignments using a browser-based spectroscopy tool."
   />
-  <title>XPS Peak Explorer | XPS Database for searching Core Level Binding Energy</title>
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="XPS Peak Explorer" />
+  <meta property="og:title" content="XPS Peak Explorer - XPS Binding Energy Database and Peak Assignment Tool" />
+  <meta property="og:description" content="Browser-based XPS reference tool for searching core-level binding energies, Auger transitions, and candidate elemental peak assignments." />
+  <meta property="og:url" content="https://corelevel-explorer.vercel.app/" />
+  <meta property="og:image" content="https://corelevel-explorer.vercel.app/docs/images/usage-reference-map.svg" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="XPS Peak Explorer - XPS Binding Energy Database and Peak Assignment Tool" />
+  <meta name="twitter:description" content="Search XPS core-level binding energies, Auger transitions, and candidate elemental peak assignments in the browser." />
+  <meta name="twitter:image" content="https://corelevel-explorer.vercel.app/docs/images/usage-reference-map.svg" />
+  <title>XPS Peak Explorer - XPS Binding Energy Database and Peak Assignment Tool</title>
+  <link rel="canonical" href="https://corelevel-explorer.vercel.app/" />
   <link rel="stylesheet" href="assets/css/app.css" />
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "XPS Peak Explorer",
+      "url": "https://corelevel-explorer.vercel.app/",
+      "description": "A browser-based X-ray photoelectron spectroscopy (XPS) reference tool for searching core-level binding energies, Auger transitions, and possible elemental peak assignments.",
+      "applicationCategory": "ScienceApplication",
+      "operatingSystem": "Any",
+      "isAccessibleForFree": true,
+      "image": "https://corelevel-explorer.vercel.app/docs/images/usage-reference-map.svg",
+      "sameAs": [
+        "https://github.com/ISSP-Matsuda-lab/XPS-Explorer"
+      ]
+    }
+  </script>
   <script>
     window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
   </script>
@@ -18,7 +46,12 @@
 <body>
   <main class="app">
     <header>
-      <div><div class="eyebrow">Surface Analysis Toolkit</div><h1>XPS Peak Explorer</h1><div class="subtitle">Energy reference viewer for core levels and Auger transitions</div></div>
+      <div>
+        <div class="eyebrow">Surface Analysis Toolkit</div>
+        <h1>XPS Peak Explorer</h1>
+        <div class="subtitle">Energy reference viewer for core levels and Auger transitions</div>
+        <p class="seo-intro">Search an XPS binding energy database for core-level peaks, Auger transitions, and candidate peak assignments using Al Kα, Mg Kα, or custom excitation energies.</p>
+      </div>
       <div class="header-actions"><div class="status"><span class="dot"></span> Reference mode</div><button id="resetAll" class="reset-all" type="button">Reset all</button></div>
     </header>
     <div class="layout">
@@ -115,7 +148,11 @@
         <div class="footer-details">
           <section class="footer-detail" aria-labelledby="dataSourcesTitle">
             <h3 id="dataSourcesTitle">Data sources</h3>
-            <p>Neutral-atom binding energies are based on the Lawrence Berkeley National Laboratory <a href="https://xdb.lbl.gov/" target="_blank" rel="noreferrer">X-Ray Data Booklet</a>. Auger kinetic energies use <a href="https://srdata.nist.gov/xps/" target="_blank" rel="noreferrer">NIST X-ray Photoelectron Spectroscopy Database (SRD 20)</a> recommended elemental reference data where available, supplemented by XDB principal Auger electron energies.</p>
+            <p>Neutral-atom core-level binding energies are based on the Lawrence Berkeley National Laboratory <a href="https://xdb.lbl.gov/" target="_blank" rel="noreferrer">X-Ray Data Booklet</a>. Auger kinetic energies use <a href="https://srdata.nist.gov/xps/" target="_blank" rel="noreferrer">NIST X-ray Photoelectron Spectroscopy Database (SRD 20)</a> recommended elemental reference data where available, supplemented by XDB principal Auger electron energies.</p>
+          </section>
+          <section class="footer-detail" aria-labelledby="useCasesTitle">
+            <h3 id="useCasesTitle">Use cases</h3>
+            <p>Use the table and energy search to compare measured XPS peaks with reference core levels, review likely elemental assignments, switch between binding energy and kinetic energy, and overlay local XY spectra for exploratory peak analysis.</p>
           </section>
           <section class="footer-detail" aria-labelledby="privacyTitle">
             <h3 id="privacyTitle">Privacy</h3>
@@ -123,7 +160,7 @@
             <p>This site uses Vercel Analytics for aggregate page usage metrics. File contents and locally saved measurement data are not sent by the app as analytics events.</p>
           </section>
           <section class="footer-detail" aria-labelledby="disclaimerTitle">
-            <h3 id="disclaimerTitle">Disclaimer</h3>
+            <h3 id="disclaimerTitle">Limitations</h3>
             <p>Values shown here are reference data only. Peak positions may vary with chemical state, charging, calibration, excitation source, and work function. Do not use this tool alone for definitive elemental or chemical-state identification; compare with calibrated measurements, standards, and literature values.</p>
           </section>
           <section class="footer-detail" aria-labelledby="licenseTitle">
