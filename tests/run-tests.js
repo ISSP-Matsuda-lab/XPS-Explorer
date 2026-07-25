@@ -1,6 +1,39 @@
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 const parser = require('../assets/js/xy-parser.js');
 const fitting = require('../assets/js/fitting.js');
+
+const indexHtml = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+assert.match(
+  indexHtml,
+  /<link rel="icon" type="image\/png" sizes="64x64" href="assets\/favicon-64\.png" \/>/,
+  'the page should declare the PNG favicon'
+);
+assert.match(
+  indexHtml,
+  /<link rel="apple-touch-icon" sizes="180x180" href="assets\/apple-touch-icon\.png" \/>/,
+  'the page should declare an Apple touch icon'
+);
+
+function assertPngSize(assetName, expectedSize) {
+  const assetPath = path.join(__dirname, '..', 'assets', assetName);
+  assert(fs.existsSync(assetPath), `${assetName} should exist`);
+  const asset = fs.readFileSync(assetPath);
+  assert.deepStrictEqual(
+    [...asset.subarray(0, 8)],
+    [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
+    `${assetName} should be a valid PNG`
+  );
+  assert.deepStrictEqual(
+    [asset.readUInt32BE(16), asset.readUInt32BE(20)],
+    [expectedSize, expectedSize],
+    `${assetName} should be ${expectedSize}x${expectedSize} pixels`
+  );
+}
+
+assertPngSize('favicon-64.png', 64);
+assertPngSize('apple-touch-icon.png', 180);
 
 const spectra = parser.parseXY(`
 # Group: Synthetic sample
