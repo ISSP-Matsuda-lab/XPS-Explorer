@@ -16,6 +16,17 @@ assert.match(
   'the page should declare an Apple touch icon'
 );
 
+[
+  ['Cr', '5414.8'],
+  ['Cu', '8047.8'],
+  ['Ga', '9251.7']
+].forEach(([source, energy]) => {
+  assert(
+    indexHtml.includes(`<option value="${energy}">${source} Kα (${energy} eV)</option>`),
+    `${source} K-alpha should be available as an excitation source preset`
+  );
+});
+
 function assertPngSize(assetName, expectedSize) {
   const assetPath = path.join(__dirname, '..', 'assets', assetName);
   assert(fs.existsSync(assetPath), `${assetName} should exist`);

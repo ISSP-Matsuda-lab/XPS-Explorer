@@ -34,7 +34,7 @@ Use the `Periodic table` at the bottom of the screen to select elements that may
 - `Core` displays binding energies, and `Auger` displays Auger transitions. Both can be shown at the same time.
 - Switch the horizontal axis between `Binding energy` and `Kinetic energy`.
 - Click a selected element card to temporarily hide it, use `x` to remove it, or use `Clear selection` to clear all selected elements.
-- Choose the excitation source from `Al K-alpha`, `Mg K-alpha`, or `Custom`, then adjust `Photon energy` and `Work function` if needed.
+- Choose the excitation source from `Al K-alpha`, `Mg K-alpha`, `Cr K-alpha`, `Cu K-alpha`, `Ga K-alpha`, or `Custom`, then adjust `Photon energy` and `Work function` if needed.
 
 ### 2. Inspect Exact Energy Values
 
