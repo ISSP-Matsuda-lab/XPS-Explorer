@@ -70,8 +70,8 @@
             </select>
           </label>
         </div>
-        <div class="plot-wrap"><div id="cursorReadout" class="cursor-readout">Cursor: — eV</div><div class="plot-help">Ctrl+drag a spectrum to offset · Shift+click to locate its data row · Drag for actions · Double-click to autoscale</div><svg id="plot" role="img" aria-label="XPS peak energy and intensity plot"></svg><div id="plotLegend" class="plot-legend" hidden></div><div id="dragMenu" class="drag-menu" hidden><button type="button" data-action="zoom-xy">Zoom both axes</button><button type="button" data-action="zoom-x">Zoom horizontal axis</button><button type="button" data-action="zoom-y">Zoom vertical axis</button><button type="button" data-action="autoscale">Autoscale</button><div class="drag-menu-separator"></div><button type="button" data-action="constant">Constant background</button><button type="button" data-action="height">Normalize height</button><button type="button" data-action="area">Normalize area</button></div><div id="analysisMessage" class="analysis-message" role="status" aria-live="polite" hidden></div><div id="axisLabel" class="axis-label">Binding energy (eV) — high to low</div><div id="yAxisLabel" class="y-axis-label" hidden>Intensity (counts/s)</div></div>
-        <div class="legend"><span><i></i>Core level</span><span><i class="auger"></i>Auger transition</span></div>
+        <div class="plot-wrap"><div id="cursorReadout" class="cursor-readout">Cursor: — eV</div><div class="plot-help">Ctrl+drag a spectrum to offset · Shift+click to locate its data row · Drag for actions · Double-click to autoscale</div><svg id="plot" role="img" aria-label="XPS peak energy, relative photoionization cross section, and measurement intensity plot"></svg><div id="plotLegend" class="plot-legend" hidden></div><div id="dragMenu" class="drag-menu" hidden><button type="button" data-action="zoom-xy">Zoom both axes</button><button type="button" data-action="zoom-x">Zoom horizontal axis</button><button type="button" data-action="zoom-y">Zoom vertical axis</button><button type="button" data-action="autoscale">Autoscale</button><div class="drag-menu-separator"></div><button type="button" data-action="constant">Constant background</button><button type="button" data-action="height">Normalize height</button><button type="button" data-action="area">Normalize area</button></div><div id="analysisMessage" class="analysis-message" role="status" aria-live="polite" hidden></div><div id="axisLabel" class="axis-label">Binding energy (eV) — high to low</div><div id="yAxisLabel" class="y-axis-label">Relative photoionization cross section (max = 1)</div></div>
+        <div class="legend"><span><i></i><span id="coreLegendText">Core level (height ∝ σ)</span></span><span><i class="auger"></i>Auger transition</span><span id="crossSectionLegend">Core heights normalized to the strongest selected peak</span></div>
         <div class="source-bar">
           <label>Excitation source
             <select id="photonPreset" aria-label="Excitation source preset">
@@ -98,6 +98,7 @@
           <div class="layer-control" aria-label="Peak types to display">
             <label class="check"><input id="showCore" type="checkbox" checked /> Core</label>
             <label class="check"><input id="showAuger" type="checkbox" /> Auger</label>
+            <label class="check"><input id="showPICross" type="checkbox" checked /> PIcross</label>
           </div>
         </div>
       </section>
@@ -105,7 +106,7 @@
         <h2>Selected elements</h2>
         <div id="selection" class="selection"></div>
         <button id="clear" class="clear">Clear selection</button>
-        <div class="notice">Reference binding energies are for neutral atoms. Peak positions vary with chemical state, charging, source, and work function. Levels above the photon energy are not shown.</div>
+        <div class="notice">Reference binding energies are for neutral atoms. Peak positions vary with chemical state, charging, source, and work function. Levels above the photon energy are not shown. When PIcross is enabled, core-line heights use Yeh–Lindau atomic photoionization cross sections and are normalized to the strongest selected peak.</div>
       </aside>
       <details id="energyDetails" class="panel energy-details" open>
         <summary><strong id="energyDetailsTitle">Peak energies</strong><span id="energyDetailsHint" class="hint"></span></summary>
@@ -153,7 +154,7 @@
         <div class="footer-details">
           <section class="footer-detail" aria-labelledby="dataSourcesTitle">
             <h3 id="dataSourcesTitle">Data sources</h3>
-            <p>Neutral-atom core-level binding energies are based on the Lawrence Berkeley National Laboratory <a href="https://xdb.lbl.gov/" target="_blank" rel="noreferrer">X-Ray Data Booklet</a>. Auger kinetic energies use <a href="https://srdata.nist.gov/xps/" target="_blank" rel="noreferrer">NIST X-ray Photoelectron Spectroscopy Database (SRD 20)</a> recommended elemental reference data where available, supplemented by XDB principal Auger electron energies.</p>
+            <p>Neutral-atom core-level binding energies are based on the Lawrence Berkeley National Laboratory <a href="https://xdb.lbl.gov/" target="_blank" rel="noreferrer">X-Ray Data Booklet</a>. Atomic subshell photoionization cross sections use the Yeh–Lindau calculations presented by <a href="https://vuo.elettra.eu/services/elements/WebElements.html" target="_blank" rel="noreferrer">Elettra WebCrossSections</a> and the <a href="https://doi.org/10.6084/m9.figshare.12389750.v3" target="_blank" rel="noreferrer">CC BY 4.0 digitisation by Kalha et al.</a> Auger kinetic energies use <a href="https://srdata.nist.gov/xps/" target="_blank" rel="noreferrer">NIST X-ray Photoelectron Spectroscopy Database (SRD 20)</a> recommended elemental reference data where available, supplemented by XDB principal Auger electron energies.</p>
           </section>
           <section class="footer-detail" aria-labelledby="useCasesTitle">
             <h3 id="useCasesTitle">Use cases</h3>
@@ -270,6 +271,8 @@
     </form>
   </dialog>
   <script src="assets/js/binding-energies.js"></script>
+  <script src="assets/js/photoionization-cross-sections.js"></script>
+  <script src="assets/js/photoionization.js"></script>
   <script src="assets/js/xy-parser.js"></script>
   <script src="assets/js/fitting.js"></script>
   <script src="assets/js/app.js"></script>

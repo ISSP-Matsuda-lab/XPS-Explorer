@@ -3,8 +3,10 @@ const fs = require('fs');
 const path = require('path');
 const parser = require('../assets/js/xy-parser.js');
 const fitting = require('../assets/js/fitting.js');
+const photoionization = require('../assets/js/photoionization.js');
 
 const indexHtml = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+const appSource = fs.readFileSync(path.join(__dirname, '..', 'assets', 'js', 'app.js'), 'utf8');
 assert.match(
   indexHtml,
   /<link rel="icon" type="image\/png" sizes="64x64" href="assets\/favicon-64\.png" \/>/,
@@ -15,6 +17,13 @@ assert.match(
   /<link rel="apple-touch-icon" sizes="180x180" href="assets\/apple-touch-icon\.png" \/>/,
   'the page should declare an Apple touch icon'
 );
+assert.match(indexHtml, /Relative photoionization cross section \(max = 1\)/, 'the reference-only plot should declare its cross-section axis');
+assert.match(indexHtml, /assets\/js\/photoionization-cross-sections\.js/, 'the photoionization data should load before the application');
+assert.match(indexHtml, /assets\/js\/photoionization\.js/, 'the photoionization calculator should load before the application');
+assert.match(indexHtml, /<input id="showPICross" type="checkbox" checked \/> PIcross/, 'PIcross should be an enabled-by-default display toggle');
+assert.match(appSource, /showPICross:showPICrossInput\.checked/, 'the PIcross setting should be saved in the workspace');
+assert.match(appSource, /showPICrossInput\.checked=ui\.showPICross!==false/, 'older workspaces should restore with PIcross enabled');
+assert.match(appSource, /crossSectionEnabled=showPICrossInput\.checked/, 'plot rendering should follow the PIcross toggle');
 
 [
   ['Cr', '5414.8'],
@@ -45,6 +54,21 @@ function assertPngSize(assetName, expectedSize) {
 
 assertPngSize('favicon-64.png', 64);
 assertPngSize('apple-touch-icon.png', 180);
+
+const carbonAtAlKa = photoionization.crossSection('C', '1s', 1486.6);
+assert.strictEqual(carbonAtAlKa.method, 'tabulated', 'an exact photon-energy node should use the tabulated cross section');
+assert(Math.abs(carbonAtAlKa.value - 0.013) < 1e-12, 'C 1s at Al K-alpha should match the Yeh-Lindau table');
+const copper2pHalf = photoionization.crossSection('Cu', '2p1/2', 1253.6);
+const copper2pThreeHalves = photoionization.crossSection('Cu', '2p3/2', 1253.6);
+assert(Math.abs(copper2pHalf.value + copper2pThreeHalves.value - 0.5345) < 1e-12, 'spin-orbit components should sum to the tabulated subshell cross section');
+assert(Math.abs(copper2pThreeHalves.value / copper2pHalf.value - 2) < 1e-12, 'p3/2 and p1/2 should follow their 2:1 statistical weights');
+const copperInterpolated = photoionization.crossSection('Cu', '2p3/2', 1200);
+assert.strictEqual(copperInterpolated.method, 'interpolated', 'a photon energy between nodes should be interpolated');
+assert(copperInterpolated.value > 0, 'an interpolated cross section should remain positive');
+const carbonAtGaKa = photoionization.crossSection('C', '1s', 9251.7);
+assert.strictEqual(carbonAtGaKa.method, 'extrapolated', 'the Ga K-alpha preset should use the documented short extrapolation');
+assert.strictEqual(photoionization.crossSection('C', '1s', 11000), null, 'extrapolation should stop beyond the conservative limit');
+assert.deepStrictEqual(photoionization.normalizedValues([carbonAtAlKa, copper2pThreeHalves]), [carbonAtAlKa.value / copper2pThreeHalves.value, 1], 'cross sections should normalize to the strongest peak');
 
 const spectra = parser.parseXY(`
 # Group: Synthetic sample
@@ -171,4 +195,4 @@ assert.strictEqual(bindingEdgeFit.parameters.backgroundSide, 'higher', 'Binding-
 assert.strictEqual(bindingEdgeFit.parameters.edgeDirection, 'rising', 'Binding-energy Fermi edge should rise with binding energy');
 bindingEdgeFit.points.forEach((point, index) => assert(point[1] >= bindingEdgeFit.backgroundPoints[index][1] - 1e-9, 'Fermi fit should stay above its background'));
 
-console.log('All parser and fitting tests passed.');
+console.log('All tests passed.');
