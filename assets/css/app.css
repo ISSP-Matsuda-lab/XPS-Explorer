@@ -20,6 +20,11 @@
     .subtitle, .hint { color: var(--muted); }
     .seo-intro { max-width: 760px; margin: 8px 0 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
     .header-actions { display: flex; align-items: center; gap: 14px; }
+    .app-menu { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 9px; background: #08171b; }
+    .app-menu a { padding: 7px 10px; border-radius: 6px; color: var(--muted); text-decoration: none; font-size: 12px; white-space: nowrap; }
+    .app-menu a[aria-current="page"] { background: var(--panel-2); color: var(--accent); }
+    .app-menu a:hover, .app-menu a:focus-visible { color: var(--text); outline: 1px solid var(--accent); }
+    @media (max-width: 1450px) { .header-actions { flex-wrap: wrap; justify-content: flex-end; } .app-menu { flex-basis: 100%; justify-content: flex-end; } }
     .status { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 12px; }
     .reset-all { padding: 7px 11px; border: 1px solid #713846; border-radius: 7px; color: #ff9aaa; background: #29151b; cursor: pointer; font-size: 11px; }
     .reset-all:hover { border-color: var(--over-photon); color: #fff; }
@@ -292,11 +297,12 @@
           var(--bg);
       }
       .app { width: 100%; padding: 10px; }
-      header { position: relative; display: block; min-width: 0; margin-bottom: 12px; padding-right: 86px; }
+      header { position: relative; display: block; min-width: 0; margin-bottom: 12px; padding-right: 0; }
       h1 { font-size: 24px; }
       .subtitle { font-size: 12px; }
       .seo-intro { max-width: calc(100vw - 36px); font-size: 12px; }
-      .header-actions { position: absolute; top: 0; right: 0; display: block; }
+      .header-actions { position: static; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+      .header-actions .app-menu { flex-basis: auto; margin-right: auto; }
       .header-actions .status { display: none; }
       .reset-all { min-height: 34px; }
       .layout { display: grid; grid-template-columns: 1fr; gap: 12px; }

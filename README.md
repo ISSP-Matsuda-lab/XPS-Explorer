@@ -20,6 +20,25 @@ python3 -m http.server 8000
 
 Open <http://localhost:8000> in your browser. To stop the server, press `Ctrl+C` in the terminal where it is running.
 
+Use the menu at the upper right to switch between **Energy Reference** and **IMFP & Peak Intensity** (`escape-depth.html`).
+
+## IMFP & Peak Intensity
+
+The separate **XPS Escape Depth** app reuses the reference app's layout, binding energies, and photoionization cross sections. Enter photon energy and work function to calculate each orbital's kinetic energy, `Ekin = hν − EB − φ`. Enter the scattering material's density, molar mass, valence-electron count, and band gap to estimate its IMFP using the nonrelativistic TPP-2M equation in nm.
+
+- Start with the Si, Cu, or NaCl examples, or enter three lattice vectors in Å and all atoms in fractional coordinates, with optional occupancies.
+- Import VASP 5 POSCAR files (Direct or Cartesian, including selective dynamics and negative volume scaling), or a single-block CIF containing fractional sites and explicit symmetry operations. CIF special positions are deduplicated. CIF files without symmetry operations must explicitly declare P1; other space groups need their operations or a structure already expanded to P1.
+- Set the Miller indices, surface termination phase, slab thickness, and emission angle measured from the surface normal. The model sums `exp(−z/(λ cos θ))` over the periodic atomic layers in the finite slab.
+- The table shows absolute cross sections, IMFP, the reference 95% information depth, attenuation-weighted areal atom density, yield `Y = σ × Neff`, and relative peak areas. Binding energies, individual-component cross sections, and IMFPs can be overridden; the reset links restore reference/automatic values.
+- Optional photon flux, collection solid angle, acquisition time, and transmission/detection efficiency convert yield to integrated counts. These defaults are illustrative and require instrument calibration for absolute predictions.
+- Export CSV to retain the structure, material and instrument settings, calculated results, data provenance, and missing-data flags. This separate app does not persist its inputs between page loads and does not upload structures.
+
+This is a homogeneous, unrelaxed, periodic crystal slab model with a flat surface. It does not include elastic scattering, diffraction, angular asymmetry/polarization, roughness, reconstruction, photon absorption, or different scattering materials along the escape path. It uses the specified vacuum kinetic-energy convention for the TPP-2M input as an approximation. The reference 95% information depth describes a semi-infinite continuum, not the cumulative depth of the discrete finite slab. Area fractions are **not atomic concentrations**.
+
+The basic IMFP energy range is 50–2000 eV; values from 2000–10000 eV are explicitly marked as extrapolations. Other energies require a manual IMFP. Missing cross sections or IMFPs stay missing and are excluded from area normalization, while inaccessible orbitals have zero yield. Imported structures do not infer density, molar mass, Nv, or band gap: update the material fields for the actual specimen. See [the calculation model](docs/escape-depth-model.md) for definitions and validation.
+
+Run the regression tests with `node tests/run-tests.js` and `node tests/escape-depth.test.js`. With Playwright available and Microsoft Edge installed, `node tests/escape-depth.browser.js` runs the browser checks using temporary data inside `.browser-qa/`; screenshots and the exported CSV are written there. A Playwright module location can be supplied through the process variable `PLAYWRIGHT_MODULE`, and an alternative browser executable through `XPS_BROWSER_EXE`.
+
 > [!NOTE]
 > You can open `index.html` directly, but using a local HTTP server is recommended to avoid browser security restrictions.
 

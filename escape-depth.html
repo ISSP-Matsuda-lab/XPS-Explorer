@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="結晶構造からXPSの軌道別IMFP、深さによる減衰、光イオン化断面積を考慮したピーク面積を予測します。" />
+  <title>XPS Escape Depth — IMFP &amp; Peak Intensity</title>
+  <link rel="icon" type="image/png" sizes="64x64" href="assets/favicon-64.png" />
+  <link rel="stylesheet" href="assets/css/app.css" />
+  <link rel="stylesheet" href="assets/css/escape-depth.css" />
+</head>
+<body class="depth-app">
+  <main class="app">
+    <header>
+      <div><div class="eyebrow">Surface Analysis Toolkit</div><h1>XPS Escape Depth</h1><div class="subtitle">結晶構造から読み解く、光電子の脱出深さとピーク強度</div></div>
+      <div class="header-actions"><nav class="app-menu" aria-label="アプリ切り替え"><a href="index.html">Energy Reference</a><a href="escape-depth.html" aria-current="page">IMFP &amp; Peak Intensity</a></nav><span class="status"><span class="dot"></span> TPP-2M model</span></div>
+    </header>
+    <div class="depth-layout">
+      <section class="panel results-panel" aria-labelledby="resultTitle">
+        <div class="toolbar"><strong id="resultTitle">深さと検出強度</strong><div class="segmented" aria-label="グラフの表示"><button id="showAttenuation" class="active" aria-pressed="true" type="button">深さ減衰</button><button id="showAreas" aria-pressed="false" type="button">ピーク面積</button></div><button id="exportResults" class="plot-layout-button" type="button">CSV出力</button></div>
+        <div class="result-metrics" aria-live="polite"><div><span>表面方位 / 面間隔</span><strong id="surfaceMetric">—</strong></div><div><span>軌道別 IMFP</span><strong id="imfpMetric">—</strong></div><div><span>計算できたピーク</span><strong id="peakMetric">—</strong></div></div>
+        <div class="depth-chart"><svg id="depthPlot" viewBox="0 0 860 350" role="img" aria-label="深さに対する非弾性散乱を受けない確率"></svg></div>
+        <div id="plotKeys" class="plot-keys"></div>
+        <p id="plotDescription" class="plot-description"></p>
+        <div class="source-bar depth-source">
+          <label>励起光源<select id="photonPreset"><option value="1486.6">Al Kα · 1486.6 eV</option><option value="1253.6">Mg Kα · 1253.6 eV</option><option value="5414.8">Cr Kα · 5414.8 eV</option><option value="8047.8">Cu Kα · 8047.8 eV</option><option value="9251.7">Ga Kα · 9251.7 eV</option><option value="custom">Custom</option></select></label>
+          <label>励起光エネルギー hν / eV<input id="photonEnergy" type="number" min="0.1" step="any" value="1486.6" required /></label>
+          <label>仕事関数 φ / eV<input id="workFunction" type="number" min="0" step="any" value="4.5" required /></label>
+          <label>検出角 θ / °（表面法線から）<input id="emissionAngle" type="number" min="0" max="89.9" step="any" value="0" required /></label>
+        </div>
+        <div id="calculationStatus" class="calculation-status" role="status" aria-live="polite"></div>
+        <div id="calculationError" class="calculation-error" role="alert" hidden></div>
+      </section>
+
+      <aside class="panel material-panel" aria-labelledby="materialTitle">
+        <div class="toolbar"><strong id="materialTitle">散乱を受ける材料</strong><span class="model-badge">TPP-2M</span></div>
+        <div class="panel-body">
+          <label class="field">構造・材料のサンプル<select id="samplePreset"><option value="si">Si · diamond</option><option value="cu">Cu · fcc</option><option value="nacl">NaCl · rock salt</option><option value="custom">Custom</option></select></label>
+          <div class="field-grid"><label class="field">密度 ρ / g cm⁻³<input id="density" type="number" min="0.001" step="any" value="2.329" required /></label><label class="field">モル質量 M / g mol⁻¹<input id="molarMass" type="number" min="0.001" step="any" value="28.085" required /></label><label class="field">価電子数 Nv / 化学式単位<input id="valence" type="number" min="0.001" step="any" value="4" required /></label><label class="field">バンドギャップ Eg / eV<input id="bandGap" type="number" min="0" step="any" value="1.12" required /></label></div>
+          <p class="field-help">MとNvは同じ化学式単位で指定します。結晶を編集・読み込みした場合は、これらの材料値も合わせて更新してください。</p>
+          <div class="formula-card"><span>光電子の運動エネルギー</span><strong>E<sub>kin</sub> = hν − E<sub>B</sub> − φ</strong><span>深さzからの無損失脱出確率</span><strong>P(z) = exp[−z / (λ cos θ)]</strong></div>
+          <p class="field-help">同じ材料内では、軌道ごとの運動エネルギーの違いがIMFPの違いになります。</p>
+        </div>
+      </aside>
+
+      <section class="panel structure-panel" aria-labelledby="structureTitle">
+        <div class="toolbar"><strong id="structureTitle">結晶構造と表面</strong><label class="file-button">CIF / POSCARを開く<input id="structureFile" type="file" accept=".cif,.vasp,.poscar,.txt,chemical/x-cif" aria-label="結晶構造ファイルを開く" /></label></div>
+        <div class="structure-body">
+          <div><label class="field" for="latticeVectors">格子ベクトル a, b, c / Å（各行にx y z）</label><textarea id="latticeVectors" rows="4" spellcheck="false" aria-describedby="structureHelp"></textarea><label class="field" for="atomicSites">単位胞内の原子 · 元素 x y z [占有率]</label><textarea id="atomicSites" rows="9" spellcheck="false" aria-describedby="structureHelp"></textarea><p id="structureHelp" class="field-help">座標は分率座標。占有率の省略時は1。全原子を入力し、境界の重複原子は除いてください。CIFの対称操作は自動展開します。</p></div>
+          <div class="surface-controls"><div class="field"><span>表面方位（Miller指数）</span><div class="miller-fields"><label>h<input id="millerH" type="number" min="-30" max="30" step="1" value="0" /></label><label>k<input id="millerK" type="number" min="-30" max="30" step="1" value="0" /></label><label>l<input id="millerL" type="number" min="-30" max="30" step="1" value="1" /></label></div></div><label class="field"><span>表面終端の位相 / d<sub>hkl</sub></span><input id="surfacePhase" type="number" min="0" max="1" step="any" value="0" /></label><p class="field-help">0は原点を通る面。+法線側を真空、−法線側を試料として切り出します。位相1は0と等価です。</p><label class="field">試料厚さ / nm<input id="sampleThickness" type="number" min="0.001" max="10000" step="any" value="10" /></label><div id="structureSummary" class="structure-summary"></div><button id="recalculate" class="primary-action" type="button">計算を更新</button><span class="field-help">数値・座標の変更は自動反映されます。</span></div>
+          <div class="slab-preview"><span class="field">原子層の深さ</span><svg id="structurePlot" viewBox="0 0 260 330" role="img" aria-label="表面からの深さに沿った元素別原子層"></svg><p class="field-help">横方向は元素別の列。円は原子層を表し、最初の100層まで表示します。</p></div>
+        </div>
+        <p id="importStatus" class="import-status" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="panel peak-panel" aria-labelledby="peakTitle">
+        <div class="toolbar"><strong id="peakTitle">軌道別のIMFP・予測ピーク面積</strong><span class="hint">E<sub>B</sub>・σ・λを補正できます</span></div>
+        <p class="table-help">Y = σ × N<sub>eff</sub>（光子1個あたり・全立体角の無損失収量）。面積比は計算できた有効な軌道内で規格化します。原子濃度ではありません。</p>
+        <div class="peak-table-scroll"><table class="prediction-table"><thead><tr><th scope="col">使用 / 軌道</th><th scope="col">E<sub>B</sub> / eV</th><th scope="col">E<sub>kin</sub> / eV</th><th scope="col">σ / Mb</th><th scope="col">IMFP λ / nm</th><th scope="col">情報深さ95% / nm</th><th scope="col">N<sub>eff</sub> / nm⁻²</th><th scope="col">予測面積 Y</th><th scope="col">面積比 / %</th><th scope="col">予測 counts</th><th scope="col">データ / 状態</th></tr></thead><tbody id="peakRows"></tbody></table></div>
+      </section>
+
+      <details class="panel calibration-panel"><summary>装置条件を使ったカウント数の見積もり</summary><div class="panel-body"><label class="calibration-toggle"><input id="enableCounts" type="checkbox" /> 光子数・検出条件から積分カウント数を算出する</label><div class="calibration-fields"><label class="field">照射領域全体の光子数 / s<input id="photonFlux" type="number" min="1" step="any" value="1e10" /></label><label class="field">積算時間 / s<input id="acquisitionTime" type="number" min="0.001" step="any" value="1" /></label><label class="field">検出立体角 ΔΩ / sr<input id="solidAngle" type="number" min="0" max="12.566370614359172" step="any" value="0.01" /></label><label class="field">1 keVでの透過率 × 検出効率<input id="detectionEfficiency" type="number" min="0" max="1" step="any" value="0.1" /></label><label class="field">透過関数の指数 p<input id="transmissionExponent" type="number" min="-5" max="5" step="any" value="0" /></label></div><p class="field-help">Counts = Y × 光子数/s × 時間 × ΔΩ/(4π) × η<sub>1keV</sub>(E<sub>kin</sub>/1000)<sup>p</sup>。等方放出、小さな検出角範囲、一様な照射を仮定します。初期値は例示値です。実測の絶対値に合わせるには装置校正が必要です。</p></div></details>
+
+      <details class="panel model-panel"><summary>計算モデル・単位・適用範囲</summary><div class="panel-body model-notes">
+        <p>入力した単位胞を周期的に繰り返す、均質な結晶の平坦なスラブを扱います。面間隔d = 1/|h b* + k b* + l c*|（逆格子は2πを含まない）、各サイトの面密度は占有率 × d/Vです。整数の面指数は最大公約数で約分します。層の深さは z<sub>j,n</sub> = mod(s − h·f<sub>j</sub>, 1)d + nd。0 ≤ z &lt; 厚さの層を足し合わせます。</p>
+        <p>N<sub>eff</sub> = Σ<sub>j,n</sub> (占有率<sub>j</sub> d/V) exp[−z<sub>j,n</sub>/(λ cosθ)]。Y = σ N<sub>eff</sub>。1 Mb = 10⁻¹⁸ cm² = 10⁻⁴ nm²。情報深さ95% = −ln(0.05) λ cosθ は均質な半無限連続体の参考値で、有限の原子層に対する累積深さではありません。</p>
+        <p>TPP-2M（nm）：λ = E/{E<sub>p</sub>²[β ln(γE) − C/E + D/E²]}、E<sub>p</sub> = 28.816√U、U = Nvρ/M、β = −1 + 9.44/√(E<sub>p</sub>² + Eg²) + 0.69ρ<sup>0.1</sup>、γ = 0.191ρ<sup>−0.5</sup>、C = 19.7 − 9.1U、D = 534 − 208U。</p>
+        <p>50〜2000 eVを基本範囲とし、2000〜10000 eVは非相対論式の外挿として表示します。それ以外はIMFPの手入力が必要です。本画面は指定された近似として E = hν − E<sub>B</sub> − φ をIMFPにも使います。厳密な固体内エネルギーの基準や分析器の仕事関数との違いに注意し、必要ならλを上書きしてください。</p>
+        <p>弾性散乱・光電子回折・偏光と角度非対称性・表面再構成・粗さ・多層膜の異なるIMFP・光の吸収は含みません。IMFPは実効減衰長（EAL）とは異なります。厚い試料、高い角度分解能、絶対定量には追加のモデルや校正が必要です。</p>
+        <p>結合エネルギーは既存アプリのLBNL参照値で、化学シフトはE<sub>B</sub>欄で補正します。断面積はYeh–Lindauの全サブシェル値を統計重率でスピン軌道分割し、対数空間で補間します。手入力したσは表示された1成分の値として扱います。表の「自動」は上書き値を解除します。</p>
+        <p><a href="https://www.nist.gov/system/files/documents/srd/SRD71UsersGuideV1-2.pdf" target="_blank" rel="noopener noreferrer">NIST SRD 71 · TPP-2Mと適用範囲</a> · <a href="https://doi.org/10.6084/m9.figshare.12389750.v3" target="_blank" rel="noopener noreferrer">Kalha et al. · Yeh–Lindauデジタルデータ（CC BY 4.0）</a> · <a href="https://xdb.lbl.gov/Section1/Sec_1-1.html" target="_blank" rel="noopener noreferrer">LBNL · 結合エネルギー</a></p>
+      </div></details>
+    </div>
+    <footer class="depth-footer">構造ファイルはブラウザー内で処理します。入力はこの画面を閉じると失われるため、必要な結果はCSVで保存してください。</footer>
+  </main>
+  <script src="assets/js/binding-energies.js"></script>
+  <script src="assets/js/photoionization-cross-sections.js"></script>
+  <script src="assets/js/photoionization.js"></script>
+  <script src="assets/js/escape-depth.js"></script>
+  <script src="assets/js/escape-depth-app.js"></script>
+</body>
+</html>
