@@ -6,6 +6,7 @@ const fitting = require('../assets/js/fitting.js');
 const photoionization = require('../assets/js/photoionization.js');
 
 const indexHtml = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+const appSource = fs.readFileSync(path.join(__dirname, '..', 'assets', 'js', 'app.js'), 'utf8');
 assert.match(
   indexHtml,
   /<link rel="icon" type="image\/png" sizes="64x64" href="assets\/favicon-64\.png" \/>/,
@@ -19,6 +20,10 @@ assert.match(
 assert.match(indexHtml, /Relative photoionization cross section \(max = 1\)/, 'the reference-only plot should declare its cross-section axis');
 assert.match(indexHtml, /assets\/js\/photoionization-cross-sections\.js/, 'the photoionization data should load before the application');
 assert.match(indexHtml, /assets\/js\/photoionization\.js/, 'the photoionization calculator should load before the application');
+assert.match(indexHtml, /<input id="showPICross" type="checkbox" checked \/> PIcross/, 'PIcross should be an enabled-by-default display toggle');
+assert.match(appSource, /showPICross:showPICrossInput\.checked/, 'the PIcross setting should be saved in the workspace');
+assert.match(appSource, /showPICrossInput\.checked=ui\.showPICross!==false/, 'older workspaces should restore with PIcross enabled');
+assert.match(appSource, /crossSectionEnabled=showPICrossInput\.checked/, 'plot rendering should follow the PIcross toggle');
 
 [
   ['Cr', '5414.8'],

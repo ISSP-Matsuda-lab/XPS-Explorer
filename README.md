@@ -32,7 +32,7 @@ Use the `Periodic table` at the bottom of the screen to select elements that may
 ![Elements selected in the periodic table and displayed as reference peaks in the Energy map](docs/images/usage-reference-map.svg)
 
 - `Core` displays binding energies, and `Auger` displays Auger transitions. Both can be shown at the same time.
-- Core-line heights show relative photoionization cross sections at the selected photon energy. Hover over a line to see its absolute cross section in megabarns (Mb) and its percentage of the strongest selected line.
+- `PIcross` switches photoionization weighting on or off. When enabled, core-line heights show relative photoionization cross sections at the selected photon energy; hover over a line to see its absolute cross section in megabarns (Mb) and its percentage of the strongest selected line. When disabled, core levels are drawn as equal-height reference lines and the cross-section axis is hidden.
 - Switch the horizontal axis between `Binding energy` and `Kinetic energy`.
 - Click a selected element card to temporarily hide it, use `x` to remove it, or use `Clear selection` to clear all selected elements.
 - Choose the excitation source from `Al K-alpha`, `Mg K-alpha`, `Cr K-alpha`, `Cu K-alpha`, `Ga K-alpha`, or `Custom`, then adjust `Photon energy` and `Work function` if needed.
