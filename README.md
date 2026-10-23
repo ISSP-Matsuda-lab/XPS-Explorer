@@ -4,7 +4,7 @@ XPS Peak Explorer is a browser app for inspecting X-ray photoelectron spectrosco
 
 The basic workflow is to select elements from the periodic table at the bottom of the screen, compare expected peak positions in the plot at the top, and inspect exact values in the energy table. You can also search for candidate elements from a measured peak energy. XY measurement files can be overlaid on the reference peaks, with simple background subtraction and normalization tools available in the browser.
 
-The app includes neutral-atom core levels and Auger transitions from H to U. It supports Al K-alpha, Mg K-alpha, and custom excitation photon energies. Neutral-atom binding energies are based on the LBNL X-Ray Data Booklet (XDB). Auger kinetic energies prefer recommended elemental reference data from the NIST X-ray Photoelectron Spectroscopy Database (SRD 20), supplemented by XDB Principal Auger Electron Energies where representative lines are not covered.
+The app includes neutral-atom core levels and Auger transitions from H to U. It supports Al, Mg, Cr, Cu, and Ga K-alpha presets as well as custom excitation photon energies. Core-line heights are calculated from Yeh-Lindau atomic subshell photoionization cross sections at the selected photon energy and normalized to the strongest selected core line. Neutral-atom binding energies are based on the LBNL X-Ray Data Booklet (XDB). Auger kinetic energies prefer recommended elemental reference data from the NIST X-ray Photoelectron Spectroscopy Database (SRD 20), supplemented by XDB Principal Auger Electron Energies where representative lines are not covered.
 
 ## Online URL
 
@@ -32,6 +32,7 @@ Use the `Periodic table` at the bottom of the screen to select elements that may
 ![Elements selected in the periodic table and displayed as reference peaks in the Energy map](docs/images/usage-reference-map.svg)
 
 - `Core` displays binding energies, and `Auger` displays Auger transitions. Both can be shown at the same time.
+- Core-line heights show relative photoionization cross sections at the selected photon energy. Hover over a line to see its absolute cross section in megabarns (Mb) and its percentage of the strongest selected line.
 - Switch the horizontal axis between `Binding energy` and `Kinetic energy`.
 - Click a selected element card to temporarily hide it, use `x` to remove it, or use `Clear selection` to clear all selected elements.
 - Choose the excitation source from `Al K-alpha`, `Mg K-alpha`, `Cr K-alpha`, `Cu K-alpha`, `Ga K-alpha`, or `Custom`, then adjust `Photon energy` and `Work function` if needed.
@@ -100,6 +101,7 @@ The app reads text files containing comment headers and two-column `energy count
 
 - Reference binding energies are neutral-atom values. Actual peak positions can shift with chemical state, charging, excitation source, calibration, and work function.
 - Core levels above the current excitation photon energy are not shown in the plot.
+- Photoionization cross sections use the [Yeh-Lindau tabulation digitized by Kalha et al.](https://doi.org/10.6084/m9.figshare.12389750.v3) (CC BY 4.0). Values between tabulated photon energies use monotone cubic interpolation in log-log space. Spin-orbit components share the tabulated subshell cross section according to their statistical weights. A short high-energy extrapolation (at most 25% above the final tabulated energy) supports the Ga K-alpha preset and is identified in the line tooltip.
 - Do not use this app alone for definitive elemental or chemical-state identification. Compare results with calibrated measurements, standards, and literature values.
 
 ## Privacy
@@ -112,7 +114,7 @@ The public site uses Vercel Analytics for aggregate page usage metrics. File con
 
 - `index.html`: application entry point
 - `assets/css/`: styles
-- `assets/js/`: application logic and binding-energy data
+- `assets/js/`: application logic, binding-energy data, and photoionization cross-section data
 - `docs/images/`: documentation images
 - `vercel.json`: minimal static-site configuration for Vercel
 
