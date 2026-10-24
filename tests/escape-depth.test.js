@@ -41,6 +41,66 @@ test('thickness saturates at the infinite geometric sum', () => {
   const result=run({thickness:10000}); close(result.rows[0].effectiveAtoms,1/(1-Math.exp(-1)));
   assert(run({thickness:.9}).total < run({thickness:2}).total);
 });
+test('zero thickness counts each 2D basis site once, including a sheet inside a vacuum cell', () => {
+  const sheet={...crystal,atoms:[{symbol:'Si',frac:[0,0,.5],occupancy:1},{symbol:'Si',frac:[.5,.5,.5],occupancy:.5}]};
+  const result=run({structure:sheet,thickness:0});
+  assert.equal(result.surface.mode,'sheet'); close(result.surface.area,1);
+  assert(result.surface.sites.every(site=>site.count===1 && site.firstDepth===0));
+  close(result.rows[0].effectiveAtoms,1.5); close(result.total,1.5e-4);
+  close(run({structure:sheet,thickness:0,angle:85}).total,result.total);
+  close(result.rows[0].informationDepth,0);
+});
+test('zero-thickness attenuation is always absent, independent of IMFP or obsolete virtual depth', () => {
+  [0,.3,10000,-1].forEach(virtualDepth=>{
+    const result=run({thickness:0,virtualDepth,angle:89,peaks:[{...base.peaks[0],lambda:.001}]});
+    close(result.rows[0].effectiveAtoms,1); close(result.total,1e-4);
+  });
+  const missingIMFP=run({thickness:0,photonEnergy:120,peaks:[{...base.peaks[0],lambda:''}]});
+  assert.equal(missingIMFP.rows[0].lambda,null); close(missingIMFP.total,1e-4); assert(!missingIMFP.incomplete);
+  close(run({thickness:0,material:{...silicon,density:0},peaks:[{...base.peaks[0],lambda:''}]}).total,1e-4);
+});
+test('2D yield is independent of vacuum height, normal translation and termination', () => {
+  const sheet={...crystal,lattice:[[10,0,0],[0,10,0],[6,0,80]],atoms:[{symbol:'Si',frac:[0,0,.73],occupancy:1}]};
+  close(run({thickness:0}).total,run({structure:sheet,thickness:0,phase:.25}).total);
+  close(run({thickness:0,miller:[0,0,-2]}).total,run({thickness:0}).total);
+});
+test('2D area, orbital IMFP, occupancy, fractions and calibrated counts stay quantitative', () => {
+  const sheet={...crystal,lattice:[[20,0,0],[0,10,0],[0,0,50]],atoms:[{...crystal.atoms[0],occupancy:.5}]};
+  const peaks=[...base.peaks,{...base.peaks[0],id:'second',label:'2s',lambda:2,sigma:2}];
+  const instrument={enabled:true,flux:1e10,time:2,solidAngle:.01,efficiency:.1,exponent:0};
+  const result=run({structure:sheet,thickness:0,peaks,instrument});
+  close(result.rows[0].area,.25e-4);
+  close(result.rows[1].area,.5e-4);
+  close(result.rows[0].counts,result.rows[0].area*1e10*2*.01/(4*Math.PI)*.1);
+  close(result.rows[0].fraction+result.rows[1].fraction,1);
+});
+test('invalid thickness fails for a 3D lattice, and obsolete virtual depth does not change bulk results', () => {
+  [-1,10001,''].forEach(thickness=>assert.throws(()=>run({thickness})));
+  [0,5,-1,''].forEach(virtualDepth=>close(run({virtualDepth}).total,run({}).total));
+});
+test('zero-volume lattice automatically uses a 2D surface area without Miller indices', () => {
+  const sheet={...crystal,lattice:[[10,0,0],[0,10,0],[0,0,0]]};
+  const result=run({structure:sheet,miller:[0,0,0],phase:'',thickness:10});
+  assert.equal(result.surface.crystal.dimension,2); assert.equal(result.surface.thickness,0);
+  assert.equal(result.surface.volume,0); assert.equal(result.surface.spacing,null); assert.equal(result.surface.indices,null);
+  close(result.surface.area,1); close(result.rows[0].effectiveAtoms,1); close(result.total,1e-4);
+  close(run({structure:{...sheet,lattice:sheet.lattice.slice(0,2)}}).total,result.total);
+  assert.deepEqual(model.parseLattice('10 0 0\n0 10 0'),sheet.lattice);
+});
+test('2D cell area comes from a vector cross product, including tilted and alternate bases', () => {
+  const tilted=run({structure:{...crystal,lattice:[[3,0,0],[1,2,2],[0,0,0]]}});
+  close(tilted.surface.area,Math.sqrt(72)/100); close(tilted.rows[0].effectiveAtoms,100/Math.sqrt(72));
+  const alternate=run({structure:{...crystal,lattice:[[10,0,0],[0,0,0],[0,0,10]]}});
+  assert.deepEqual(alternate.surface.crystal.plane.indices,[0,2]); close(alternate.total,1e-4);
+  assert.equal(model.latticeGeometry([[10,0,0],[0,10,0],[0,0,1e8]]).dimension,3);
+});
+test('redundant planar vectors convert coordinates to the selected basis and detect physical duplicates', () => {
+  const planar={...crystal,lattice:[[10,0,0],[0,10,0],[10,10,0]],atoms:[{symbol:'Si',frac:[0,0,.25],occupancy:1}]};
+  const parsed=model.validateStructure(planar);
+  assert.deepEqual(parsed.atoms[0].frac,[.25,.25,0]); close(run({structure:planar}).total,1e-4);
+  assert.throws(()=>model.validateStructure({...planar,atoms:[...planar.atoms,{symbol:'Si',frac:[.25,.25,0],occupancy:1}]}));
+  assert.throws(()=>model.validateStructure({...crystal,lattice:[[10,0,0],[0,10,0],[0,0,0]],atoms:[...crystal.atoms,{symbol:'Si',frac:[0,0,.5],occupancy:1}]}));
+});
 test('occupancy, sigma and collected counts have linear scaling', () => {
   const half={...crystal,atoms:[{...crystal.atoms[0],occupancy:.5}]}; close(run({structure:half}).total,run({}).total/2);
   const instrument={enabled:true,flux:1e10,time:2,solidAngle:.01,efficiency:.1,exponent:0};
@@ -87,10 +147,11 @@ test('disabled peaks and unavailable peaks are excluded from normalization', () 
   const peaks=[...base.peaks,{...base.peaks[0],id:'missing',label:'9z',sigma:''},{...base.peaks[0],id:'disabled',enabled:false}];
   const result=run({peaks}); assert.equal(result.rows.length,2); close(result.rows[0].fraction,1); assert(result.incomplete);
 });
-test('empty, duplicate and singular structures fail visibly', () => {
+test('empty, duplicate and zero-area structures fail visibly', () => {
   assert.throws(()=>model.validateStructure({...crystal,atoms:[]}));
   assert.throws(()=>model.validateStructure({...crystal,atoms:[...crystal.atoms,{symbol:'Si',frac:[0,0,1],occupancy:1}]}));
-  assert.throws(()=>model.latticeGeometry([[1,0,0],[2,0,0],[0,0,1]]));
+  assert.throws(()=>model.latticeGeometry([[1,0,0],[2,0,0],[0,0,0]]));
+  assert.throws(()=>model.latticeGeometry([[0,0,0],[0,0,0],[0,0,0]]));
   assert.throws(()=>model.parseAtoms('Si 0 0')); assert.throws(()=>model.parseAtoms('Si 0 0 0 -1'));
 });
 test('direct coordinate editor accepts comments and optional occupancy', () => {
@@ -105,6 +166,15 @@ test('POSCAR Cartesian scale and negative target volume are handled', () => {
   assert.deepEqual(parsed.atoms[1].frac,[.25,.5,.75]);
   close(model.parsePoscar(poscar.replace('\n2\n','\n-1000\n')).volume,1000);
   assert.throws(()=>model.parsePoscar(poscar.replace('\nSi O\n','\n2 1\n')));
+});
+test('2D POSCAR imports Direct and in-plane Cartesian coordinates without a reciprocal volume', () => {
+  const direct=poscar.replace('0 0 5','0 0 0');
+  const parsed=model.parsePoscar(direct); assert.equal(parsed.dimension,2); close(parsed.plane.area,100);
+  assert.deepEqual(parsed.atoms[1].frac,[.25,.5,0]);
+  const cartesian=direct.replace('Direct','Cartesian').replace('.25 .5 .75','1.25 2.5 0');
+  assert.deepEqual(model.parsePoscar(cartesian).atoms[1].frac,[.25,.5,0]);
+  assert.throws(()=>model.parsePoscar(cartesian.replace('1.25 2.5 0','1.25 2.5 1')),/平面上/);
+  assert.throws(()=>model.parsePoscar(direct.replace('\n2\n','\n-1000\n')),/正の倍率/);
 });
 const cif=`data_test
 _cell_length_a 5.431(1)
@@ -129,6 +199,18 @@ Si1 Si .25 .25 .25 1
 `;
 test('CIF expands supplied symmetry and handles crystallographic uncertainties', () => {
   const parsed=model.parseCif(cif); assert.equal(parsed.atoms.length,2); close(parsed.lattice[0][0],5.431); assert.deepEqual(parsed.atoms[1].frac,[.75,.75,.75]);
+});
+test('zero-c CIF imports a 2D area and deduplicates collapsed symmetry positions', () => {
+  const parsed=model.parseCif(cif.replace('_cell_length_c 5.431','_cell_length_c 0'));
+  assert.equal(parsed.dimension,2); close(parsed.plane.area,5.431**2);
+  const collapsed=cif.replace('_cell_length_c 5.431','_cell_length_c 0').replace('Si .25 .25 .25','Si 0 0 .25');
+  assert.equal(model.parseCif(collapsed).atoms.length,1);
+});
+test('CIF accepts consistent coplanar angles but rejects impossible cell geometry', () => {
+  const planar=cif.replace('_cell_angle_alpha 90','_cell_angle_alpha 45').replace('_cell_angle_beta 90','_cell_angle_beta 45');
+  const parsed=model.parseCif(planar);
+  assert.equal(parsed.dimension,2); close(parsed.plane.area,5.431**2);
+  assert.throws(()=>model.parseCif(planar.replace('_cell_angle_alpha 45','_cell_angle_alpha 20')),/矛盾/);
 });
 test('CIF special positions are deduplicated', () => assert.equal(model.parseCif(cif.replace('Si .25 .25 .25','Si 0 0 0')).atoms.length,1));
 test('CIF fractional translations and hexagonal symmetry are parsed without eval', () => {

@@ -39,11 +39,28 @@
     return result;
   }
   function latticeGeometry(lattice) {
-    if (!Array.isArray(lattice) || lattice.length !== 3 || lattice.some(row => !Array.isArray(row) || row.length !== 3)) throw new Error('格子ベクトルは3行×3列で入力してください。');
+    if (!Array.isArray(lattice) || ![2,3].includes(lattice.length) || lattice.some(row => !Array.isArray(row) || row.length !== 3)) throw new Error('格子ベクトルは2行または3行、各行にx y zを入力してください。');
     const vectors = lattice.map(row => row.map(v => number(v, '格子ベクトル')));
+    if (vectors.length === 2) vectors.push([0,0,0]);
+    const pair = [[0,1],[0,2],[1,2]].find(([i,j]) => norm(cross(vectors[i],vectors[j])) > 1e-10 * Math.max(1,norm(vectors[i])*norm(vectors[j])));
+    if (!pair) throw new Error('面積が0です。面を張る独立な2本以上の格子ベクトルを入力してください。');
     const signedVolume = dot(vectors[0], cross(vectors[1], vectors[2]));
-    if (Math.abs(signedVolume) < 1e-6) throw new Error('格子の体積が0です。独立な3本の格子ベクトルを入力してください。');
-    return { vectors, volume: Math.abs(signedVolume), reciprocal: [cross(vectors[1], vectors[2]), cross(vectors[2], vectors[0]), cross(vectors[0], vectors[1])].map(v => v.map(x => x / signedVolume)) };
+    if (Math.abs(signedVolume) <= 1e-10 * Math.max(1,norm(vectors[0])*norm(vectors[1])*norm(vectors[2]))) {
+      const [i,j] = pair, normal = cross(vectors[i],vectors[j]), area = norm(normal);
+      const reciprocal = [[0,0,0],[0,0,0],[0,0,0]];
+      reciprocal[i] = cross(vectors[j],normal).map(v=>v/(area*area));
+      reciprocal[j] = cross(normal,vectors[i]).map(v=>v/(area*area));
+      return { vectors, volume:0, dimension:2, reciprocal, plane:{indices:pair,area,normal:normal.map(v=>v/area)} };
+    }
+    return { vectors, volume: Math.abs(signedVolume), dimension:3, reciprocal: [cross(vectors[1], vectors[2]), cross(vectors[2], vectors[0]), cross(vectors[0], vectors[1])].map(v => v.map(x => x / signedVolume)) };
+  }
+  function normalizedFractional(frac, geometry) {
+    const values = frac.map(v => number(v, '分率座標'));
+    if (geometry.dimension === 3) return values.map(wrap);
+    const position = [0,1,2].map(axis=>dot(values,geometry.vectors.map(row=>row[axis])));
+    // Canonical coordinates on the selected 2D cell also detect duplicate
+    // physical sites that differ only along a zero/redundant lattice vector.
+    return geometry.reciprocal.map(v=>wrap(dot(v,position)));
   }
   function validateStructure(structure) {
     const geometry = latticeGeometry(structure.lattice);
@@ -52,7 +69,7 @@
     const atoms = structure.atoms.map(atom => {
       if (!/^[A-Z][a-z]?$/.test(atom.symbol)) throw new Error(`元素記号が不正です: ${atom.symbol}`);
       if (!Array.isArray(atom.frac) || atom.frac.length !== 3) throw new Error('分率座標はx, y, zの3値が必要です。');
-      const frac = atom.frac.map(v => wrap(number(v, '分率座標')));
+      const frac = normalizedFractional(atom.frac, geometry);
       const occupancy = number(atom.occupancy ?? 1, '占有率', 0, 1);
       const key = frac.map(v => v.toFixed(7)).join(',');
       sites.set(key, (sites.get(key) || 0) + occupancy);
@@ -76,6 +93,12 @@
   const gcd = (a, b) => b ? gcd(b, a % b) : Math.abs(a);
   function surfaceGeometry(structure, miller, phase, thickness) {
     const crystal = validateStructure(structure);
+    const depth = crystal.dimension === 2 ? 0 : number(thickness, '試料厚さ', 0, 10000);
+    if (crystal.dimension === 2) {
+      const area = crystal.plane.area / 100; // Å² -> nm²; no division by volume.
+      const sites = crystal.atoms.filter(a=>a.occupancy>0).map(atom=>({...atom,firstDepth:0,count:1,arealDensity:atom.occupancy/area}));
+      return { crystal, indices:null, spacing:null, thickness:0, sites, volume:0, mode:'sheet', area };
+    }
     if (!Array.isArray(miller) || miller.length !== 3) throw new Error('面指数はh k lの3値が必要です。');
     let indices = miller.map(v => number(v, 'Miller指数', -30, 30));
     if (indices.some(v => !Number.isInteger(v)) || indices.every(v => v === 0)) throw new Error('Miller指数は整数で、(0 0 0)以外を指定してください。');
@@ -84,18 +107,20 @@
     const reciprocalNormal = [0, 1, 2].map(axis => indices.reduce((sum, value, i) => sum + value * crystal.reciprocal[i][axis], 0));
     const spacingAngstrom = 1 / norm(reciprocalNormal);
     const spacing = spacingAngstrom / 10;
-    const termination = number(phase, '終端位相', 0, 1);
-    const depth = positive(thickness, '試料厚さ');
-    if (depth > 10000) throw new Error('試料厚さは10000 nm以下にしてください。');
+    const isSheet = depth === 0;
+    const termination = isSheet ? 0 : number(phase, '終端位相', 0, 1);
     // A primitive (hkl) repeat has volume V, height d_hkl and area V/d_hkl.
     // Each basis site therefore has areal density d_hkl/V (Å^-2).
     const sites = crystal.atoms.filter(a => a.occupancy > 0).map(atom => {
-      const firstDepth = wrap(termination - dot(indices, atom.frac)) * spacing;
+      // A 2D input cell is one sheet: every basis site contributes once, with
+      // no vacuum-cell repeats or dependence on its position along the normal.
+      const firstDepth = isSheet ? 0 : wrap(termination - dot(indices, atom.frac)) * spacing;
       const ratio = (depth - firstDepth) / spacing;
-      const count = Math.max(0, Math.ceil(ratio - 1e-10)); // half-open slab: 0 <= z < thickness
+      const count = isSheet ? 1 : Math.max(0, Math.ceil(ratio - 1e-10)); // half-open slab: 0 <= z < thickness
       return { ...atom, firstDepth, count, arealDensity: atom.occupancy * spacingAngstrom / crystal.volume * 100 };
     });
-    return { crystal, indices, spacing, thickness: depth, sites, volume: crystal.volume };
+    return { crystal, indices, spacing, thickness: depth, sites, volume: crystal.volume,
+      mode: isSheet ? 'sheet' : 'slab', area: crystal.volume / spacingAngstrom / 100 };
   }
   function attenuation(depth, lambda, angle) {
     const z = number(depth, '深さ', 0);
@@ -110,12 +135,13 @@
     const geometricSum = -Math.expm1(-site.count * step) / -Math.expm1(-step);
     return site.arealDensity * Math.exp(-site.firstDepth / length) * geometricSum;
   }
-  function predict({ structure, material, photonEnergy, workFunction, angle, miller, phase, thickness, peaks, instrument }, crossSection) {
+  function predict({ structure, material, photonEnergy, workFunction, angle, miller, phase, thickness, peaks, instrument, imfpModel = 'tpp' }, crossSection, dielectricCalculator) {
     const photon = positive(photonEnergy, '励起光エネルギー');
     const phi = number(workFunction, '仕事関数', 0);
     number(angle, '検出角度', 0, 89.9);
-    materialParameters(material);
     const surface = surfaceGeometry(structure, miller, phase, thickness);
+    if (!['tpp','dielectric'].includes(imfpModel)) throw new Error('IMFPの計算方法を選択してください。');
+    if (surface.mode === 'slab' && imfpModel === 'tpp') materialParameters(material);
     let calibration = null;
     if (instrument?.enabled) {
       calibration = {
@@ -132,6 +158,14 @@
       if (energy <= 0) return { ...base, area: 0, counts: calibration ? 0 : null, status: ['励起不可'] };
       const manualLambda = peak.lambda != null && peak.lambda !== '';
       if (manualLambda) { base.lambda = positive(peak.lambda, `${peak.symbol} ${peak.label} IMFP`); base.imfpMethod = '手入力'; }
+      else if (imfpModel === 'dielectric') {
+        try {
+          if (typeof dielectricCalculator !== 'function') throw new Error('損失関数データを入力してください。');
+          const result = dielectricCalculator(energy);
+          base.lambda = positive(result.lambda,'誘電関数IMFP'); base.imfpMethod = result.method;
+          base.status.push(...(result.warnings || []));
+        } catch (error) { base.status.push(error.message); }
+      }
       else if (energy < 50 || energy > 10000) base.status.push('IMFP範囲外（手入力可）');
       else {
         try { base.lambda = imfp(energy, material); base.imfpMethod = energy > 2000 ? 'TPP-2M 外挿' : 'TPP-2M'; }
@@ -144,11 +178,16 @@
         if (sigma) { base.sigma = sigma.value; base.crossSectionMethod = sigma.method; if (sigma.method === 'extrapolated') base.status.push('断面積外挿'); }
         else base.status.push('断面積データなし（手入力可）');
       }
-      if (base.lambda != null && base.sigma != null) {
+      if (surface.mode === 'sheet') base.informationDepth = 0;
+      else if (base.lambda != null) base.informationDepth = -Math.log(0.05) * base.lambda * Math.cos(angle * Math.PI / 180);
+      if ((surface.mode === 'sheet' || base.lambda != null) && base.sigma != null) {
         const sites = surface.sites.filter(site => site.symbol === peak.symbol);
-        base.effectiveAtoms = sites.reduce((sum, site) => sum + siteSignal(site, surface.spacing, base.lambda, angle), 0);
+        if (surface.mode === 'sheet') {
+          base.effectiveAtoms = sites.reduce((sum, site) => sum + site.arealDensity, 0);
+        } else {
+          base.effectiveAtoms = sites.reduce((sum, site) => sum + siteSignal(site, surface.spacing, base.lambda, angle), 0);
+        }
         base.area = base.sigma * 1e-4 * base.effectiveAtoms; // Mb -> nm²
-        base.informationDepth = -Math.log(0.05) * base.lambda * Math.cos(angle * Math.PI / 180);
         if (calibration) {
           const efficiency = calibration.efficiency * (energy / 1000) ** calibration.exponent;
           if (efficiency > 1 + 1e-12) base.status.push('透過関数 > 1：カウント算出不可');
@@ -168,6 +207,7 @@
     if (scale === 0) throw new Error('POSCAR scaleは0以外にしてください。');
     const raw = lines.slice(2, 5).map(line => line.split(/\s+/).slice(0, 3).map(Number));
     const geometry = latticeGeometry(raw);
+    if (scale < 0 && geometry.dimension === 2) throw new Error('体積0のPOSCARには負の体積スケールを使えません。正の倍率を指定してください。');
     const factor = scale < 0 ? Math.cbrt(-scale / geometry.volume) : scale;
     const lattice = raw.map(row => row.map(v => v * factor));
     const symbols = lines[5].split(/\s+/);
@@ -181,13 +221,14 @@
     const direct = /^d/i.test(lines[cursor]);
     if (!direct && !/^[ck]/i.test(lines[cursor])) throw new Error('DirectまたはCartesian座標を指定してください。');
     cursor++;
-    const reciprocal = latticeGeometry(lattice).reciprocal;
+    const scaledGeometry = latticeGeometry(lattice), reciprocal = scaledGeometry.reciprocal;
     const atoms = [];
     symbols.forEach((symbol, i) => {
       for (let j = 0; j < counts[i]; j++) {
         if (!lines[cursor]) throw new Error('POSCARの原子座標が不足しています。');
         const xyz = lines[cursor++].split(/\s+/).slice(0, 3).map(v => number(v, '原子座標'));
         if (xyz.length !== 3) throw new Error('原子座標は3成分が必要です。');
+        if (!direct && scaledGeometry.dimension === 2 && Math.abs(dot(xyz.map(x=>x*factor),scaledGeometry.plane.normal)) > 1e-7) throw new Error('2次元POSCARのCartesian原子座標は格子が張る平面上に指定してください。');
         atoms.push({ symbol, frac: direct ? xyz : reciprocal.map(v => dot(v, xyz.map(x => x * factor))), occupancy: 1 });
       }
     });
@@ -255,7 +296,7 @@
         tags[token.value.toLowerCase()] = tokens[i++].value;
       }
     }
-    const a = positive(cifNumber(tags._cell_length_a, 'a'), 'a'), b = positive(cifNumber(tags._cell_length_b, 'b'), 'b'), c = positive(cifNumber(tags._cell_length_c, 'c'), 'c');
+    const a = positive(cifNumber(tags._cell_length_a, 'a'), 'a'), b = positive(cifNumber(tags._cell_length_b, 'b'), 'b'), c = number(cifNumber(tags._cell_length_c, 'c'), 'c', 0);
     const [alpha, beta, gamma] = ['alpha', 'beta', 'gamma'].map(key => {
       const value = cifNumber(tags['_cell_angle_' + key], key);
       if (value <= 0 || value >= 180) throw new Error('格子角は0〜180°の範囲内にしてください。');
@@ -263,8 +304,9 @@
     });
     const cy = c * (Math.cos(alpha) - Math.cos(beta) * Math.cos(gamma)) / Math.sin(gamma);
     const cz2 = c*c - (c*Math.cos(beta))**2 - cy*cy;
-    if (cz2 <= 0) throw new Error('CIFの格子角から正の体積を計算できません。');
-    const lattice = [[a, 0, 0], [b*Math.cos(gamma), b*Math.sin(gamma), 0], [c*Math.cos(beta), cy, Math.sqrt(cz2)]];
+    if (cz2 < -1e-10 * Math.max(1,c*c)) throw new Error('CIFの格子長と角度が矛盾しています。');
+    const lattice = [[a, 0, 0], [b*Math.cos(gamma), b*Math.sin(gamma), 0], [c*Math.cos(beta), cy, Math.sqrt(cz2 <= 1e-10 * Math.max(1,c*c) ? 0 : cz2)]];
+    const geometry = latticeGeometry(lattice);
     const allRows = [tags, ...loops.flat()];
     let operations = allRows.map(row => row._space_group_symop_operation_xyz || row._symmetry_equiv_pos_as_xyz).filter(Boolean);
     if (!operations.length) {
@@ -285,7 +327,7 @@
       const occupancy = row._atom_site_occupancy == null ? 1 : cifNumber(row._atom_site_occupancy, '占有率');
       const unique = new Map();
       operations.forEach(operation => {
-        const transformed = symmetryOperation(operation, frac);
+        const transformed = normalizedFractional(symmetryOperation(operation, frac), geometry);
         unique.set(transformed.map(v => v.toFixed(7)).join(','), transformed);
       });
       unique.forEach(position => atoms.push({ symbol, frac: position, occupancy }));

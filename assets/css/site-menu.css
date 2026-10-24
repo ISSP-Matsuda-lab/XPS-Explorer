@@ -1,0 +1,19 @@
+.header-actions.toolkit-actions { display:flex; flex-direction:column; align-items:flex-end; gap:10px; max-width:none; }
+.site-navigation { position:relative; align-self:flex-end; display:flex; align-items:center; gap:8px; }
+.site-menu-toggle { display:flex; align-items:center; gap:8px; padding:8px 12px; color:var(--text); background:#08171b; border:1px solid var(--line); border-radius:8px; cursor:pointer; font-size:12px; }
+.site-menu-toggle:hover, .site-menu-toggle:focus-visible { border-color:var(--accent); outline:none; }
+.toolkit-actions .app-menu { position:absolute; top:calc(100% + 7px); right:0; min-width:235px; display:flex; flex-direction:column; flex-wrap:nowrap; z-index:100; box-shadow:0 12px 30px #0008; padding:6px; }
+.toolkit-actions .app-menu[hidden] { display:none; }
+.toolkit-actions .app-menu a { padding:11px 12px; }
+.header-controls { display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:12px; }
+.model-switch { display:inline-flex; gap:3px; padding:3px; border:1px solid var(--line); border-radius:8px; background:#08171b; }
+.model-switch button { border:0; border-radius:5px; background:transparent; color:var(--muted); font-size:12px; padding:8px 11px; cursor:pointer; }
+.model-switch button[aria-pressed="true"] { background:var(--panel-2); color:var(--accent); }
+.model-switch button:focus-visible { outline:1px solid var(--accent); }
+.language-toggle { padding:8px 12px; min-height:36px; color:var(--accent); background:#08171b; border:1px solid var(--line); border-radius:8px; cursor:pointer; }
+.language-toggle:focus-visible { outline:1px solid var(--accent); }
+.depth-view-switch { display:inline-flex; padding:3px; border:1px solid var(--line); border-radius:8px; background:#08171b; }
+.depth-view-switch a { padding:8px 12px; color:var(--muted); font-size:12px; text-decoration:none; border-radius:5px; }
+.depth-view-switch a[aria-current="page"] { background:var(--accent); color:#06201a; font-weight:700; }
+.depth-view-switch a:focus-visible { outline:1px solid var(--accent); }
+@media(max-width:850px){ .header-actions.toolkit-actions { width:100%; align-items:flex-end; margin-top:0; } }
