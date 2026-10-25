@@ -20,7 +20,23 @@ python3 -m http.server 8000
 
 Open <http://localhost:8000> in your browser. To stop the server, press `Ctrl+C` in the terminal where it is running.
 
-Click the menu icon above **Reset all** to switch between **Energy Reference** and **Escape depth & film thickness** (`escape-depth.html`). The segmented **IMFP / EAL** control switches between the depth pages; EAL is not a separate menu entry. The language button beside the menu switches every page between **English** (first-visit default) and **Japanese**, preserving inputs and results. The choice persists across pages and reloads, independently of each page's reset.
+Use the menu icon beside **Reset all** to switch between **Energy Reference**, **Escape depth & film thickness** (`escape-depth.html`), and **ARPES Cut Planner** (`arpes-cut-planner.html`). The segmented **IMFP / EAL** control switches between the depth pages; EAL is not a separate menu entry. The language button beside the menu switches every page between **English** (first-visit default) and **Japanese**, preserving inputs and results. The choice persists across pages and reloads, independently of each page's reset.
+
+## ARPES Cut Planner
+
+Open **ARPES Cut Planner** from the menu to map slit and deflector angle scans into momentum space. One interactive graph switches between a 2D crystal kx–ky projection and a 3D momentum map. Left-drag to pan in 2D or rotate in 3D, right-drag to pan in either mode, scroll to zoom, and double-click or choose **Reset view** to restore the view. Hover to inspect a point; keyboard arrow keys and +/− also control the view.
+
+- Switch axes between Å⁻¹ and π/a, show or hide a Brillouin zone near the plotted momentum or all zones containing sampled points, fold points into the first zone, and select a color scale and color quantity.
+- The right-hand **Configuration** panel contains photon energy, inner potential, work function, lattice constants, slit/perpendicular/azimuth offsets, sample normal, and slit direction. Directions use Cartesian crystal components, not Miller indices.
+- Choose any of the five 2D Bravais lattices. In 3D choose orthogonal, hexagonal, rhombohedral, monoclinic, or triclinic metrics and a compatible P/C/I/F/R centering. Rhombohedral axes are already primitive; R in hexagonal axes uses the three-point obverse setting.
+- The lower **Angular scan** panel lists Deflector before Slit and synchronizes sliders and numeric start/end inputs for both angles. Equal start/end values produce a single cut. **Centering & primitive cell** shows the selected real-space cell, primitive vectors, and P/C/I/F/R comparison diagrams.
+- Below Angular scan, **Normal emission** plots sample-normal kz versus photon energy with an editable energy range and the current energy marked. Below the primitive-cell panel, **Surface Brillouin zone** calculates the surface lattice from the configured normal, displays labeled boundary points, and lists Γ distances, emission angles, azimuths, and offset-corrected slit/deflector settings. Inaccessible momenta are marked.
+- In 3D, **Top · xy**, **Side · xz**, and **Side · yz** select exact orthographic views beside **Reset view**. On desktop the angular scan panel is left of the primitive-cell panel. Defaults are V0 = 15 eV and −15° to +15° with 31 points on each angle.
+- Inputs are saved locally, separately from the XPS pages. **Reset all** affects only ARPES settings.
+
+This is a free-electron final-state **measurement-coverage simulation at the Fermi level**, following the momentum convention in Matthew Staab's ARPES Planner. It does not calculate bands or photoemission intensities. See [the model, lattice conventions, and validation](docs/arpes-cut-planner.md) and [upstream MIT attribution](docs/arpes-planner-license.txt). No extra packages or external plotting service are needed.
+
+Run `node tests/arpes.test.js` for numerical validation and `node tests/arpes.browser.js` for browser interactions, layout, persistence, and language checks. The browser suite uses the same Playwright/Edge setup and `.browser-qa/` output directory as the other browser tests.
 
 ## IMFP & Peak Intensity
 

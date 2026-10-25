@@ -4,7 +4,7 @@
   if(!nav || !actions)return;
   const page=location.pathname.split('/').pop() || 'index.html';
   nav.replaceChildren();
-  [['index.html','Energy Reference'],['escape-depth.html','Escape depth & film thickness']].forEach(([href,title])=>{
+  [['index.html','Energy Reference'],['escape-depth.html','Escape depth & film thickness'],['arpes-cut-planner.html','ARPES Cut Planner']].forEach(([href,title])=>{
     const link=document.createElement('a');link.href=href;link.textContent=title;
     if(href===page || (page==='effective-depth.html' && href==='escape-depth.html'))link.setAttribute('aria-current','page');nav.append(link);
   });
@@ -15,7 +15,7 @@
   const controls=document.createElement('div');controls.className='header-controls';
   const reset=actions.querySelector('.reset-all');
   [...actions.children].filter(node=>node!==nav && node!==reset).forEach(node=>controls.append(node));
-  if(page!=='index.html'){
+  if(['escape-depth.html','effective-depth.html'].includes(page)){
     const views=document.createElement('div');views.className='depth-view-switch';views.setAttribute('role','group');views.setAttribute('aria-label','Depth calculation view');
     [['escape-depth.html','IMFP'],['effective-depth.html','EAL']].forEach(([href,label])=>{
       const link=document.createElement('a');link.href=href;link.textContent=label;

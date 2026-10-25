@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Plan ARPES momentum-space cuts in two- and three-dimensional Brillouin zones with interactive angle scans and crystal geometry." />
+  <title>ARPES Cut Planner — Surface Analysis Toolkit</title>
+  <link rel="icon" type="image/png" sizes="64x64" href="assets/favicon-64.png" />
+  <link rel="stylesheet" href="assets/css/app.css" />
+  <link rel="stylesheet" href="assets/css/site-menu.css" />
+  <link rel="stylesheet" href="assets/css/arpes.css" />
+  <script src="assets/js/i18n.js"></script>
+  <script src="assets/js/i18n-depth.js"></script>
+  <script src="assets/js/i18n-arpes.js"></script>
+</head>
+<body class="arpes-app">
+  <main class="app">
+    <header>
+      <div><div class="eyebrow">Surface Analysis Toolkit</div><h1>ARPES Cut Planner</h1><div class="subtitle">Explore angle scans in reciprocal space</div></div>
+      <div class="header-actions"><nav class="app-menu" aria-label="Applications"></nav><button id="resetArpes" class="reset-all" type="button">Reset all</button></div>
+    </header>
+    <p id="storageStatus" class="planner-note" role="status" hidden></p>
+    <div class="planner-layout">
+      <section class="panel momentum-panel" aria-labelledby="momentumTitle">
+        <div class="toolbar"><strong id="momentumTitle">Momentum map</strong><span class="planner-badge">E − Eꜰ = 0 eV</span><div class="view-buttons"><button id="topView" class="planner-button" type="button" hidden>Top · xy</button><button id="sideView" class="planner-button" type="button" hidden>Side · xz</button><button id="sideYView" class="planner-button" type="button" hidden>Side · yz</button><button id="resetView" class="planner-button" type="button">Reset view</button></div></div>
+        <div class="plot-controls">
+          
+          <label>Axes<select id="units"><option value="angstrom">Å⁻¹</option><option value="pi">π/a, π/b, π/c</option></select></label>
+          <label class="toggle-field"><input id="showBZ" type="checkbox" checked /> Brillouin zone</label>
+          <label class="toggle-field"><input id="allZones" type="checkbox" /> All occupied zones</label>
+          <label class="toggle-field"><input id="fold" type="checkbox" /> Fold into first BZ</label>
+          <label>Color scale<select id="colorScale"><option value="viridis">Viridis</option><option value="magma">Magma</option><option value="plasma">Plasma</option><option value="coolwarm">Cool–warm</option><option value="turbo">Turbo</option></select></label>
+          <label>Color by<select id="colorBy"><option value="slit">Slit angle</option><option value="scan">Scan angle</option><option value="kz">Unfolded kᶻ</option></select></label>
+        </div>
+        <p id="plannerError" class="planner-error" role="alert" hidden></p>
+        <div class="momentum-canvas-wrap"><canvas id="momentumCanvas" tabindex="0" aria-label="Interactive ARPES momentum map" aria-describedby="plotHelp plotSummary">Interactive ARPES momentum map</canvas><output id="plotTooltip" class="plot-tooltip" hidden></output></div>
+        <div class="plot-bottom"><div class="legend-controls"><div class="color-legend"><span id="colorMinimum"></span><div><div id="colorGradient"></div><span id="colorLabel"></span></div><span id="colorMaximum"></span></div><input id="whiteBackground" type="checkbox" hidden /><button id="backgroundToggle" class="planner-button" type="button" aria-pressed="false">White background</button></div><div id="zoneLegend" class="zone-legend"><span><i id="firstZoneKey"></i><span id="firstZoneLabel">Brillouin zone</span></span><span id="otherZoneLegend"><i id="otherZoneKey"></i>Other zones</span></div><div id="plotSummary" role="status"></div></div>
+        <p class="planner-note" id="plotHelp">Left-drag to pan in 2D or rotate in 3D. Right-drag to pan in any view. Scroll to zoom; double-click to reset. Arrow keys move the view; +/− zoom.</p>
+      </section>
+      <aside class="panel configuration-panel" aria-labelledby="configurationTitle">
+        <div class="toolbar"><strong id="configurationTitle">Configuration</strong><span class="planner-badge">Live</span></div>
+        <div class="configuration-body">
+          <div class="config-grid">
+            <label class="planner-field">Photon Energy / eV<input id="photonEnergy" type="number" min="0.01" step="any" /></label>
+            <label class="planner-field">Inner Potential / eV<input id="innerPotential" type="number" min="0" step="0.1" /></label>
+            <label class="planner-field">Work function / eV<input id="workFunction" type="number" min="0" step="0.1" /></label>
+            <div class="kinetic-readout"><span>Kinetic energy / eV</span><output id="kineticEnergy">—</output></div>
+          </div>
+          <div class="config-divider"></div>
+          <div class="lattice-selectors"><label class="planner-field dimension-field">Dimension<select id="dimension"><option value="2">2D</option><option value="3">3D</option></select></label>
+          <label id="bravaisField" class="planner-field">2D Bravais lattice<select id="bravais"><option value="square">Square</option><option value="rectangular">Rectangular</option><option value="centered">Centered rectangular</option><option value="hexagonal">Hexagonal / triangular</option><option value="oblique">Oblique</option></select></label>
+          <div id="crystalFields" hidden>
+            <label class="planner-field">Lattice system<select id="system"><option value="orthogonal">Orthogonal</option><option value="hexagonal">Hexagonal</option><option value="rhombohedral">Rhombohedral</option><option value="monoclinic">Monoclinic</option><option value="triclinic">Triclinic</option></select></label>
+            <label class="planner-field">Centering<select id="centering"><option>P</option><option>C</option><option>I</option><option>F</option><option>R</option></select></label>
+          </div>
+          </div>
+          <fieldset class="lattice-fields"><legend>Lattice constant / Å</legend><div class="config-grid three"><label class="planner-field">a<input id="a" type="number" min="0.001" step="any" /></label><label class="planner-field">b<input id="b" type="number" min="0.001" step="any" /></label><label class="planner-field">c<input id="c" type="number" min="0.001" step="any" /></label></div><div class="config-grid three"><label class="planner-field">α / °<input id="alpha" type="number" min="0.01" max="179.99" step="any" /></label><label class="planner-field">β / °<input id="beta" type="number" min="0.01" max="179.99" step="any" /></label><label class="planner-field">γ / °<input id="gamma" type="number" min="0.01" max="179.99" step="any" /></label></div></fieldset>
+          <p id="latticeHelp" class="planner-note"></p>
+          <div class="config-divider"></div>
+          <div class="config-grid offset-grid">
+            <label class="planner-field">Offset along slit / °<input id="offsetSlit" type="number" min="-180" max="180" step="0.1" /></label>
+            <label class="planner-field">Offset perpendicular to slit / °<input id="offsetPerpendicular" type="number" min="-180" max="180" step="0.1" /></label>
+            <label class="planner-field">Azimuth angle offset / °<input id="azimuth" type="number" step="1" /></label>
+            </div><div class="config-grid">
+            <label class="planner-field">Sample normal<input id="normal" type="text" spellcheck="false" /></label>
+            <label class="planner-field">Slit direction<input id="slitDirection" type="text" spellcheck="false" /></label>
+          </div>
+          <p class="planner-note">Directions are Cartesian crystal coordinates (x, y, z), not Miller indices. The slit is projected perpendicular to the normal and normalized.</p>
+        </div>
+      </aside>
+    </div>
+    <div class="planner-lower">
+      <div class="planner-column">
+    <details id="scanPanel" open class="panel scan-panel" aria-labelledby="scanTitle">
+      <summary class="toolbar"><strong id="scanTitle">Angular scan</strong><span class="planner-badge">Deflector mode</span></summary>
+      <div class="paired-panel-content">
+      <div class="scan-grid">
+        <div class="scan-axis"><div class="scan-heading"><h2 id="scanAngleTitle">Deflector angle</h2><label>Points<input id="scanCount" type="number" min="1" max="121" step="1" /></label></div><div class="range-row"><label for="scanStart">Start / °</label><input id="scanStartRange" aria-label="Scan start slider" type="range" min="-89" max="89" step="0.1" /><input id="scanStart" aria-label="Scan start angle" type="number" min="-89" max="89" step="0.1" /></div><div class="range-row"><label for="scanEnd">End / °</label><input id="scanEndRange" aria-label="Scan end slider" type="range" min="-89" max="89" step="0.1" /><input id="scanEnd" aria-label="Scan end angle" type="number" min="-89" max="89" step="0.1" /></div></div>
+        <div class="scan-axis"><div class="scan-heading"><h2>Slit angle</h2><label>Points<input id="slitCount" type="number" min="1" max="121" step="1" /></label></div><div class="range-row"><label for="slitStart">Start / °</label><input id="slitStartRange" aria-label="Slit start slider" type="range" min="-89" max="89" step="0.1" /><input id="slitStart" aria-label="Slit start angle" type="number" min="-89" max="89" step="0.1" /></div><div class="range-row"><label for="slitEnd">End / °</label><input id="slitEndRange" aria-label="Slit end slider" type="range" min="-89" max="89" step="0.1" /><input id="slitEnd" aria-label="Slit end angle" type="number" min="-89" max="89" step="0.1" /></div></div>
+      </div>
+      <p id="scanHelp" class="planner-note"></p>
+      </div>
+    </details>
+    <details id="kzPanel" open class="panel kz-panel" aria-labelledby="kzTitle">
+      <summary class="toolbar"><strong id="kzTitle">Normal emission · kz vs photon energy</strong></summary>
+      <div class="analysis-body"><div class="config-grid"><label class="planner-field">Energy start / eV<input id="energyStart" type="number" min="0" step="any" value="5" /></label><label class="planner-field">Energy end / eV<input id="energyEnd" type="number" min="0" step="any" value="150" /></label></div>
+      <p id="kzError" class="planner-error" role="alert" hidden></p><svg id="kzPlot" tabindex="0" viewBox="0 0 600 330" role="img" aria-label="Normal emission momentum versus photon energy"></svg><output id="kzReadout"></output>
+      <p class="planner-note">Move the cursor for crosshairs. Drag a rectangle to zoom; double-click to reset.</p>
+      <p class="planner-note">kz here is momentum along the sample normal: √[0.2624684 (hν − φ + V₀)] at EF. Offsets do not change normal emission. Energies at or below the work function are excluded.</p></div>
+    </details>
+      </div>
+      <div class="planner-column">
+    <details id="cellPanel" open class="panel cell-panel" aria-labelledby="cellTitle">
+      <summary class="toolbar"><strong id="cellTitle">Centering & primitive cell</strong><span class="planner-badge" id="cellBadge"></span></summary>
+      <div class="paired-panel-content">
+      <div class="cell-content"><svg id="cellDiagram" viewBox="0 0 500 300" role="img" aria-label="Conventional and primitive unit cells"></svg><div class="cell-description"><div class="cell-key"><span><i class="conventional-key"></i>Conventional cell</span><span><i class="primitive-key"></i>Primitive cell</span><span><i class="point-key"></i>Lattice points</span></div><p id="cellSummary"></p><div id="primitiveVectors" class="vector-readout" data-no-i18n></div><p class="planner-note">The first Brillouin zone is the Wigner–Seitz cell of the primitive reciprocal lattice. Centering changes this lattice, not just the drawing.</p><p id="cellSettingNote" class="planner-note"></p></div></div>
+      <div class="centering-guide" id="centeringGuide"></div>
+      </div>
+    </details>
+    <details id="sbzPanel" open class="panel sbz-panel" aria-labelledby="sbzTitle">
+      <summary class="toolbar"><strong id="sbzTitle">Surface Brillouin zone · symmetry angles</strong></summary>
+      <div class="analysis-body"><p id="sbzError" class="planner-error" role="alert" hidden></p><svg id="sbzPlot" viewBox="0 0 600 340" role="img" aria-label="Surface Brillouin zone and symmetry points"></svg>
+      <div id="sbzRelations" class="sbz-relations" data-no-i18n></div></div>
+    </details>
+      </div>
+    </div>
+    <details class="panel model-panel"><summary>Model & angle conventions</summary><div class="model-body"><p>Free-electron final-state momentum at the Fermi level: Ekin = hν − φ. Photon momentum, band dispersion, matrix elements and intensity are not included; colors encode scan coordinates.</p><p data-no-i18n>k₀ = √(0.2624684 Ekin) Å⁻¹ · k⊥ = √[0.2624684 (Ekin cos²s cos²d + V₀)] Å⁻¹</p><p>Deflector: (kₛ, kᵈ) = k₀ (sin s, −cos s sin d).</p><p>Offsets are subtracted from the input angles. A positive azimuth rotates the slit toward normal × slit. In 2D, the map projects onto the crystal kx–ky plane and omits kz.</p><p>Reduced units use a/π for kx (π/a), b/π for ky (π/b), and c/π for kz (π/c). The normal-emission curve also uses c/π. These are Cartesian components, not fractional reciprocal-lattice coordinates; c is a reference length for a tilted surface or a 2D lattice.</p><p>For primitive orthogonal and hexagonal lattices, Γ to the z boundary is π/c and adjacent Γ points are 2π/c apart. Centering and oblique axes can change these distances.</p><p>Momentum convention adapted from <a href="https://github.com/mstaab16/arpes-planner" target="_blank" rel="noopener noreferrer">Matthew Staab · ARPES Planner</a> (<a href="docs/arpes-planner-license.txt">MIT license</a>). Lattice conventions: <a href="https://dictionary.iucr.org/Reciprocal_lattice" target="_blank" rel="noopener noreferrer">IUCr · Reciprocal lattice</a>.</p></div></details>
+    <footer class="planner-note">Settings are saved in this browser. Reset all restores only this page.</footer>
+  </main>
+  <script src="assets/js/arpes.js"></script>
+  <script src="assets/js/arpes-plot.js"></script>
+  <script src="assets/js/arpes-analysis.js"></script>
+  <script src="assets/js/arpes-analysis-ui.js"></script>
+  <script src="assets/js/arpes-app.js"></script>
+  <script src="assets/js/site-menu.js"></script>
+</body>
+</html>
