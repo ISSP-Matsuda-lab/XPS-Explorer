@@ -2,25 +2,39 @@
 
 ## Film inverse problem
 
-`assets/js/film-thickness.js` solves a uniform, fully covering planar film using a background-subtracted film/substrate peak-area ratio R. The film and substrate components must be separately fitted; the input ratio is before sensitivity-factor correction. Photon energy, work function, and the polar emission angle θ come from the escape-depth page.
+The adsorbate parameter section is a native disclosure, initially collapsed. Its heading toggles the inputs; expansion state persists with the film workspace and Reset all collapses it again. The result row (surface geometry, orbital IMFP, thickness, and atoms per cell) sits outside the disclosure, below the parameters and immediately above the orbital table, so it remains visible when inputs are collapsed.
 
-Define μ = cos θ, film emitter density na in atoms/nm³, component cross section σa in nm², La for film-origin electrons traveling **inside the film**, and Ls,f for substrate-origin electrons traveling **inside the film**. These generally differ because their kinetic energies differ. Enter IMFPs for a straight-line approximation or EALs suitable for the actual application/geometry. The substrate bulk IMFP must not be substituted for Ls,f in a different material.
+`assets/js/film-thickness.js` supports three film attenuation modes: **none** (default), **TPP-2M**, and **manual path lengths**. The user enters separately fitted film and substrate areas in the same units, before sensitivity-factor correction. `measuredRatio` divides the nonnegative film area by the strictly positive substrate area; invalid or unrepresentable ratios cannot produce a thickness. Scaling both areas equally leaves thickness unchanged. Six fields (element, orbital, reference peak, two areas, number density) share one row above the orbital table; narrow screens scroll that row horizontally. The model selector and its conditional inputs occupy the next compact row. Thickness and adsorbate atoms per substrate surface cell appear next to IMFP. Photon energy, work function, and emission angle θ are shared by both peaks; binding energies and cross sections use reference data.
 
-The uncoated substrate yield Ys,0 is the selected positive orbital yield from the existing crystal calculation. It already includes the substrate cross section, occupancy, its internal attenuation, and the finite slab or 2D geometry. The added film is separate from that crystal input. With relative transmission/angular response Ta/Ts:
+Define adsorbate emitter density na in atoms/nm³ and component cross section σa in nm². Equal transmission and angular sensitivity for the two peaks remain explicit assumptions. None needs only number density. Manual adds La and Ls,f in nm: film-origin and substrate-origin electrons traveling inside the film. Values are path lengths (IMFP or an appropriate EAL), not normal projected depths.
+
+TPP-2M adds molar mass M, valence count Nv, selected-element atom count ν, and band gap Eg, all for the same film formula unit. Mass density is `ρ = na M / (602.214076 ν)`. Both peak energies use the shared vacuum-energy convention `hν − EB − φ`; the existing `EscapeDepth.imfp` evaluates the film material at each energy. Valid inputs are 50–10000 eV; either energy above 2000 marks extrapolation. There is no fallback to the substrate material, no element-dependent guessed constants, and no silent fallback to zero attenuation. The model does not depend on the substrate's choice of TPP or dielectric IMFP. References: [NIST SRD 82, appendix B](https://www.nist.gov/document/srd82usersguidev1-3pdf) and [EAL application definitions](https://www.nist.gov/publications/effective-attenuation-lengths-different-quantitative-applications-x-ray-photoelectron).
+
+The uncoated substrate yield Ys,0 is the selected positive orbital yield from the existing crystal calculation. It already includes the substrate cross section, occupancy, internal attenuation, and finite slab or 2D geometry. The adsorbate is separate from that crystal input. Without film attenuation:
 
 ```
-Ia(t) ∝ σa na La μ [1 − exp(−t/(La μ))] Ta
-Is(t) ∝ Ys,0 exp(−t/(Ls,f μ)) Ts
-R(t) = Ia(t) / Is(t)
+Ia(t) ∝ σa na t
+Is(t) ∝ Ys,0
+R = Ia / Is
+adsorbate_areal_density = R Ys,0 / σa
+t = adsorbate_areal_density / na
+adsorbate_atoms_per_surface_cell = adsorbate_areal_density × Acell
 ```
 
-This extends the standard overlayer/substrate ratio described in [Jablonski and Powell, section 3.1.1.4](https://srd.nist.gov/jpcrdreprint/5.0008576.pdf), using the app's uncoated substrate yield instead of assuming a semi-infinite substrate. `1 Mb = 10⁻⁴ nm²`. Given material mass density ρ in g/cm³, molar mass M in g/mol, and ν emitter atoms per formula unit, `na = 602.214076 ρν/M` atoms/nm³. The interface rounds the coefficient to 602.214.
+This is the infinite-adsorbate-attenuation-length limit of the previous exponential overlayer model, with equal sensitivity factors. The direct cosθ factor cancels in this limit; θ can still affect Ys,0 through substrate internal attenuation. `1 Mb = 10⁻⁴ nm²`. Given mass density ρ in g/cm³, molar mass M in g/mol, and ν selected-element atoms per formula unit, `na = 602.214076 ρν/M` atoms/nm³.
 
-The function is strictly increasing for positive sensitivity, density, and lengths. Set a = Laμ, b = Ls,fμ, C = σa na a(Ta/Ts)/Ys,0. The solver uses `log R(t) = log C + log(−expm1(−t/a)) + t/b`, avoiding underflow from the attenuated substrate. A bound `t ≤ max(a,b) log1p(R/C)` initializes bisection; softplus evaluates this bound even for extreme ratios. R=0 gives t=0. For equal lengths a=b, the independent closed form is `t = a log1p(R/C)`.
+Without attenuation the estimate is linear in R. Doubling number density halves thickness while leaving atoms per cell unchanged. With attenuation, set a = La cosθ, b = Ls,f cosθ, C = σa na a / Ys,0:
 
-Outputs are t in nm, na t in atoms/nm², and substrate retention `exp(−t/b)`. Density and attenuation fields start empty rather than assigning unverified material properties. Cross sections come from the existing Yeh–Lindau implementation, with manual override. The transmission ratio defaults to 1 as an explicit equal-response assumption. A single ratio cannot distinguish film thickness from unknown coverage/density. Islands, partial coverage, intermixing, roughness, and isolated adatoms are outside this model; molecular adsorption yields an equivalent uniform-film thickness.
+```
+R(t) = C [1 − exp(−t/a)] exp(t/b)
+log R(t) = log C + log(−expm1(−t/a)) + t/b
+```
 
-`film-thickness-app.js` consumes the main app's latest prediction via `EscapeDepthWorkspace.getPrediction()` and `xps:prediction` events. A pending or invalid main calculation invalidates film results and export. Inputs persist under `xps-film-thickness.workspace.v1`; the main reset emits `xps:escape-reset` and restores film defaults too. A selected reference remains selected through temporary invalid drafts. CSV exports retain the fit inputs, energy and cross-section information, the uncoated yield, substrate geometry, and inferred quantities.
+The monotone function is inverted by bisection in log space. A softplus expression initializes the upper bound `max(a,b) log1p(R/C)`. Equal lengths have the closed form `t = a log1p(R/C)`. R=0 gives zero thickness and atoms in every mode. The film-average escape factor is `a (1−exp(−t/a))/t` (limit 1 at zero thickness); substrate transmission through the film is `exp(−t/b)`. Exports name these separately. Non-finite or underflowed positive outputs are rejected. Attenuated modes assume a uniform, fully covering flat film and a narrow angular acceptance; density now also changes attenuation in TPP mode.
+
+Outputs are t in nm, adsorbate atoms/nm², and the selected adsorbate element's atoms per substrate surface cell. Acell is the existing crystal model's area in nm²: V/dhkl for a 3D input and the independent in-plane basis area for a rank-two, zero-volume lattice. Counts use the actual input surface cell, including supercells, not a volume cell or an automatically reduced primitive cell. These are average atom counts, not molecule counts or a monolayer fraction. Nonuniform adsorption is represented by an equivalent uniform-film thickness. Number density starts empty instead of assigning an unverified value.
+
+`film-thickness-app.js` consumes the main prediction via `EscapeDepthWorkspace.getPrediction()` and `xps:prediction`. Pending or invalid main calculations invalidate film results/export. Storage key remains `xps-film-thickness.workspace.v1`, payload version 4. Older versions retain common selections, measured areas, and density, and start in none mode. A version-1 ratio is shown until actual areas are supplied. Current mode-specific inputs persist across switches and reloads; hidden inputs are disabled and do not influence another mode. Reset restores none and clears all extra inputs. CSV records mode, film material inputs, computed density/lengths, extrapolation flag, average film escape and substrate transmission factors, areas, energies, geometry, surface-cell area, thickness, and atom count.
 
 ## Angle convention
 
@@ -34,4 +48,4 @@ The menu contains only Energy Reference and Escape depth & film thickness. A sep
 
 The language button next to the menu defaults to English and stores a shared preference at `xps-toolkit.language.v1`. Resetting scientific inputs does not reset language. `i18n.js` translates UI text nodes and accessibility/tooltip/placeholder attributes using explicit bilingual catalogs, including newly rendered content. Original source text is retained per node so toggling remains reversible. The observer is disconnected during translation to prevent feedback loops. No input values, select values, formulas, scientific datasets, or imported names/edited legends are rewritten. Dynamic templates retain variables and support different placeholder order between languages. Cross-tab language changes are synchronized through the storage event.
 
-Validation includes closed-form and unequal-length inverse checks, extreme ratios, 2D substrate yields, input guards, CSV, pending/invalid state clearing, saved inputs and resets, default English, language changes across all three pages, retained numeric results, imported user names, fit dialogs, mobile overflow, and a scan for untranslated Japanese in the default English interface.
+Validation includes all three modes, TPP density conversion and energy guards, equal-length closed forms and unequal-length inverse checks, the no-attenuation limit, angle effects, extreme ratios, 2D atom counts, CSV mode/length metadata, mode-specific persistence and reset, language changes, six fields on one row, mobile overflow, and existing reference-page workflows.

@@ -75,15 +75,36 @@
 .model-notes a { color: var(--accent); }
 .depth-footer { margin: 20px 0 0; color: var(--muted); font-size: 11px; text-align: center; }
 .storage-status { margin: 0 0 12px; padding: 10px 14px; color: var(--auger); border: 1px solid var(--line); border-radius: 8px; }
-.peak-metrics { grid-template-columns: repeat(2, 1fr); }
-.film-panel { grid-column: 1 / -1; }
-.film-body { display:grid; grid-template-columns:1fr 1fr; gap:24px; padding:20px; }
-.film-body > * { min-width:0; }
-.film-results { grid-column:1 / -1; }
-.film-results .result-metrics { padding-inline:0; }
-.film-results summary { cursor:pointer; font-size:12px; color:var(--muted); padding:12px 0; }
+.peak-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); padding-bottom: 20px; }
+#filmThickness, #filmAtomsPerCell { color: var(--accent); }
+.film-estimator { margin: 14px 18px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.film-estimator[open] { padding-bottom: 12px; }
+.film-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.film-estimator[open] > .film-heading { margin-bottom: 12px; }
+.film-estimator > .film-heading { color: var(--text); list-style: none; }
+.film-heading::-webkit-details-marker { display: none; }
+.film-heading::before { content: '▸'; color: var(--accent); }
+.film-estimator[open] > .film-heading::before { content: '▾'; }
+.film-heading:focus-visible { outline: 1px solid var(--accent); outline-offset: 3px; }
+.film-heading strong { font-size: 13px; }
+.film-heading button { margin-left: auto; }
+.film-measurements-scroll { overflow-x: auto; }
+.film-measurements-scroll:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+.film-measurements { display: grid; grid-template-columns: .65fr .65fr 1fr 1.1fr 1.1fr 1.3fr; gap: 10px; min-width: 980px; align-items: end; }
+.film-transport-row { display: flex; align-items: end; flex-wrap: wrap; gap: 0 12px; }
+.film-transport-row > .field { flex: 0 1 220px; }
+.film-transport-fields { display: flex; flex: 1; align-items: end; flex-wrap: wrap; gap: 0 12px; }
+.film-transport-fields > .field { flex: 1 1 145px; min-width: 0; }
+.film-transport-fields[hidden] { display: none; }
+.film-inline { color: var(--muted); font-size: 11px; }
+.film-inline output { color: var(--accent); font-variant-numeric: tabular-nums; }
+.film-inline .field-help { margin-bottom: 0; }
+.film-secondary { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-top: 12px; color: var(--muted); font-size: 11px; }
+.film-secondary output { color: var(--text); font-variant-numeric: tabular-nums; }
+.film-estimator .calculation-status { padding: 0; line-height: 1.8; }
+.film-estimator summary { cursor: pointer; font-size: 12px; color: var(--muted); padding: 12px 0; }
 .film-results .model-notes { padding:0; }
-@media(max-width:700px){ .film-body { grid-template-columns:1fr; } }
+@media(max-width:700px){ .peak-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 14px; } }
 @media (min-width: 851px) and (max-width: 1250px) { .structure-body { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); } .slab-preview { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--line); padding: 16px 0 0; } #structurePlot { max-height: 250px; } }
 @media (max-width: 1100px) { .depth-layout { grid-template-columns: minmax(0, 1fr) 300px; } .depth-app header { align-items: start; gap: 20px; } .result-metrics strong { font-size: 16px; } .structure-body { gap: 18px; } .calibration-fields { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 850px) { .depth-layout { grid-template-columns: 1fr; } .depth-app header { flex-direction: column; gap: 16px; } .depth-app .header-actions { max-width: none; justify-content: start; } .depth-app .app-menu { flex-basis: auto; justify-content: start; } .structure-body { grid-template-columns: 1fr 1fr; } .slab-preview { grid-column: 1/-1; border-left: none; border-top: 1px solid var(--line); padding: 16px 0 0; } #structurePlot { max-height: 300px; } }
