@@ -13,7 +13,8 @@
   const toggle=document.createElement('button');toggle.type='button';toggle.className='site-menu-toggle';toggle.setAttribute('aria-controls','siteMenu');toggle.setAttribute('aria-expanded','false');toggle.setAttribute('aria-label','ページメニュー');
   toggle.innerHTML='<svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span>メニュー</span>';
   const controls=document.createElement('div');controls.className='header-controls';
-  [...actions.children].filter(node=>node!==nav).forEach(node=>controls.append(node));
+  const reset=actions.querySelector('.reset-all');
+  [...actions.children].filter(node=>node!==nav && node!==reset).forEach(node=>controls.append(node));
   if(page!=='index.html'){
     const views=document.createElement('div');views.className='depth-view-switch';views.setAttribute('role','group');views.setAttribute('aria-label','Depth calculation view');
     [['escape-depth.html','IMFP'],['effective-depth.html','EAL']].forEach(([href,label])=>{
@@ -27,7 +28,7 @@
   language.setAttribute('aria-label',window.I18n?.language==='ja'?'Switch to English':'日本語に切り替え');
   language.addEventListener('click',()=>window.I18n?.setLanguage(window.I18n.language==='ja'?'en':'ja'));
   window.addEventListener('languagechange',()=>{language.textContent=I18n.language==='ja'?'English':'日本語';language.setAttribute('aria-label',I18n.language==='ja'?'Switch to English':'日本語に切り替え');});
-  wrapper.append(toggle,language,nav);actions.append(wrapper,controls);actions.classList.add('toolkit-actions');
+  wrapper.append(toggle,nav);actions.append(language);if(reset)actions.append(reset);actions.append(controls,wrapper);actions.classList.add('toolkit-actions');
   const setOpen=open=>{nav.hidden=!open;toggle.setAttribute('aria-expanded',String(open));};
   toggle.addEventListener('click',()=>setOpen(nav.hidden));
   document.addEventListener('click',event=>{if(!wrapper.contains(event.target))setOpen(false);});
