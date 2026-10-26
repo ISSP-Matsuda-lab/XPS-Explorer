@@ -2,10 +2,21 @@
   'use strict';
   const A=window.Arpes,P=window.ArpesPlot,$=id=>document.getElementById(id),translate=text=>window.I18n?.translate(text)||text;
   const key='xps-toolkit.arpes.v1',keys=Object.keys(A.DEFAULTS).filter(id=>id!=='scanMode'),ranges=['slitStart','slitEnd','scanStart','scanEnd'];
-  const plot=new P.MomentumPlot($('momentumCanvas'),$('plotTooltip'));
+  const vectorKeys=['normal','slitDirection'],componentFields=id=>['X','Y','Z'].map(axis=>$(id+axis));
+  const plot=new P.MomentumPlot($('momentumCanvas'),$('plotTooltip'),$('momentumHairlines'));
+  for(const [label,names] of P.PALETTE_GROUPS){
+    const group=document.createElement('optgroup');group.label=translate(label);group.dataset.paletteGroup=label;
+    for(const name of names){const option=document.createElement('option');option.value=name;option.textContent=P.paletteLabel(name);option.setAttribute('data-no-i18n','');group.append(option);}
+    $('colorScale').append(group);
+  }
+  function syncPlotControls(){
+    $('plotRotate').hidden=plot.config?.dimension!==3;
+    for(const button of $('plotModebar').querySelectorAll('button')){button.disabled=!result;if(button.dataset.dragMode)button.setAttribute('aria-pressed',String(button.dataset.dragMode===plot.dragMode));}
+    for(const group of $('colorScale').querySelectorAll('optgroup'))group.label=translate(group.dataset.paletteGroup);
+  }
   let result=null,zone=null,cell=null,latticeKey='',frame=0;
-  function write(config){for(const id of keys){const field=$(id);if(field.type==='checkbox')field.checked=config[id];else field.value=config[id];}}
-  function read(){const config={scanMode:'deflector'};for(const id of keys){const field=$(id);config[id]=field.type==='checkbox'?field.checked:(field.type==='number'||id==='dimension'?field.value===''?NaN:Number(field.value):field.value);}return config;}
+  function write(config){for(const id of keys){if(vectorKeys.includes(id)){const values=A.vector(config[id]);componentFields(id).forEach((field,i)=>{field.value=values[i];});continue;}const field=$(id);if(field.type==='checkbox')field.checked=config[id];else field.value=config[id];}}
+  function read(){const config={scanMode:'deflector'};for(const id of keys){if(vectorKeys.includes(id)){config[id]=componentFields(id).map(field=>field.value.trim()===''?NaN:Number(field.value)).join(', ');continue;}const field=$(id);config[id]=field.type==='checkbox'?field.checked:(field.type==='number'||id==='dimension'?field.value===''?NaN:Number(field.value):field.value);}return config;}
   function constraints(){
     const dim=Number($('dimension').value),system=$('system').value,bravais=$('bravais').value;
     for(const id of ['topView','sideView','sideYView'])$(id).hidden=dim!==3;
@@ -46,7 +57,8 @@
   function render(){
     frame=0;constraints();const config=read();
     try{
-      for(const id of keys){const field=$(id);if(!field.disabled&&field.type==='number'&&!field.checkValidity())throw Error('Check the numeric input limits.');}
+      if(vectorKeys.some(id=>componentFields(id).some(field=>field.value.trim()===''||!Number.isFinite(Number(field.value)))))throw Error('Enter a finite number for each vector component.');
+      for(const field of keys.flatMap(id=>vectorKeys.includes(id)?componentFields(id):[$(id)]))if(!field.disabled&&field.type==='number'&&!field.checkValidity())throw Error('Check the numeric input limits.');
       const nextKey=JSON.stringify(['dimension','bravais','system','centering','a','b','c','alpha','beta','gamma'].map(id=>config[id]));
       if(nextKey!==latticeKey){const nextCell=A.lattice(config),nextZone=A.brillouinZone(nextCell.reciprocal);cell=nextCell;zone=nextZone;latticeKey=nextKey;}
       result=A.simulate(config,cell);plot.update(result,zone,config);
@@ -60,21 +72,25 @@
       $('cellDiagram').replaceChildren();$('primitiveVectors').textContent='';$('cellSummary').textContent=translate('Enter valid settings to display the unit cell.');$('cellBadge').textContent='—';$('cellSettingNote').textContent='';$('centeringGuide').replaceChildren();
       for(const id of ['colorMinimum','colorMaximum','colorLabel'])$(id).textContent='';$('colorGradient').style.background='none';
     }
+    syncPlotControls();
   }
   const schedule=()=>{if(!frame)frame=requestAnimationFrame(render);};
   let initial={...A.DEFAULTS};
-  try{const raw=localStorage.getItem(key);if(raw){const stored=JSON.parse(raw);if(!stored||typeof stored!=='object')throw Error('Invalid saved state');for(const id of keys)if(typeof stored[id]===typeof initial[id])initial[id]=stored[id];A.simulate(initial);if(!['angstrom','pi'].includes(initial.units)||!['viridis','magma','plasma','coolwarm','turbo'].includes(initial.colorScale)||!['slit','scan','kz'].includes(initial.colorBy))throw Error('Invalid saved view');}}
+  try{const raw=localStorage.getItem(key);if(raw){const stored=JSON.parse(raw);if(!stored||typeof stored!=='object')throw Error('Invalid saved state');for(const id of keys)if(typeof stored[id]===typeof initial[id])initial[id]=stored[id];A.simulate(initial);if(!['angstrom','pi'].includes(initial.units)||!Object.hasOwn(P.PALETTES,initial.colorScale)||!['slit','scan','kz'].includes(initial.colorBy))throw Error('Invalid saved view');}}
   catch{initial={...A.DEFAULTS};$('storageStatus').hidden=false;$('storageStatus').textContent=translate('Saved settings could not be loaded. Defaults are shown.');}
   write(initial);render();
   // Match natural content heights while keeping collapsed panels independent.
-  const pairedPanels=[$('scanPanel'),$('cellPanel')],wideLayout=matchMedia('(min-width:1001px)'),naturalHeights=new Map();
+  const panelPairs=[[$('scanPanel'),$('cellPanel')],[$('kzPanel'),$('sbzPanel')]],wideLayout=matchMedia('(min-width:1001px)'),naturalHeights=new Map();
+  const panelBody=panel=>panel.querySelector('.paired-panel-content, .analysis-body');
   function alignPanels(){
-    for(const panel of pairedPanels)if(panel.open)naturalHeights.set(panel,panel.querySelector('summary').getBoundingClientRect().height+panel.querySelector('.paired-panel-content').getBoundingClientRect().height+2);
-    const height=Math.max(0,...naturalHeights.values());
-    for(const panel of pairedPanels)panel.style.minHeight=wideLayout.matches&&panel.open?`${height}px`:'';
+    for(const pair of panelPairs){
+      for(const panel of pair)if(panel.open)naturalHeights.set(panel,panel.querySelector('summary').getBoundingClientRect().height+panelBody(panel).getBoundingClientRect().height+2);
+      const height=Math.max(0,...pair.map(panel=>naturalHeights.get(panel)||0));
+      for(const panel of pair)panel.style.minHeight=wideLayout.matches&&panel.open?`${height}px`:'';
+    }
   }
   const panelObserver=new ResizeObserver(alignPanels);
-  for(const panel of pairedPanels){panelObserver.observe(panel.querySelector('.paired-panel-content'));panelObserver.observe(panel.querySelector('summary'));panel.addEventListener('toggle',alignPanels);}
+  for(const panel of panelPairs.flat()){panelObserver.observe(panelBody(panel));panelObserver.observe(panel.querySelector('summary'));panel.addEventListener('toggle',alignPanels);}
   wideLayout.addEventListener('change',alignPanels);alignPanels();
   for(const id of keys)$(id).addEventListener('input',()=>{
     if(id==='system'){
@@ -90,9 +106,13 @@
   $('sideView').addEventListener('click',()=>plot.setView('side'));
   $('sideYView').addEventListener('click',()=>plot.setView('sideY'));
   $('backgroundToggle').addEventListener('click',()=>{$('whiteBackground').checked=!$('whiteBackground').checked;schedule();});
-  $('resetView').addEventListener('click',()=>plot.reset());
-  $('resetArpes').addEventListener('click',()=>{write(A.DEFAULTS);for(const panel of document.querySelectorAll('.planner-column > details'))panel.open=true;ArpesAnalysisUI.resetEnergyView();$('energyStart').value=5;$('energyEnd').value=150;plot.reset(false);$('storageStatus').hidden=true;render();});
+  $('plotReset').addEventListener('click',()=>plot.reset());
+  $('plotZoomIn').addEventListener('click',()=>plot.zoomBy(1.25));
+  $('plotZoomOut').addEventListener('click',()=>plot.zoomBy(.8));
+  for(const button of $('plotModebar').querySelectorAll('[data-drag-mode]'))button.addEventListener('click',()=>{plot.setDragMode(button.dataset.dragMode);syncPlotControls();});
+  $('plotDownload').addEventListener('click',()=>plot.downloadPng());
+  $('resetArpes').addEventListener('click',()=>{write(A.DEFAULTS);for(const panel of document.querySelectorAll('.planner-column > details'))panel.open=true;ArpesAnalysisUI.resetEnergyView(true);$('energyStart').value=5;$('energyEnd').value=150;plot.reset(false);$('storageStatus').hidden=true;render();});
   for(const id of ['energyStart','energyEnd'])$(id).addEventListener('input',()=>{if(result)ArpesAnalysisUI.render(read(),cell);});
   window.addEventListener('languagechange',schedule);
-  window.ArpesWorkspace={getResult:()=>result,getZone:()=>zone,getConfig:read,getView:()=>({zoom:plot.zoom,azimuth:plot.azimuth,panX:plot.panX,panY:plot.panY,elevation:plot.elevation,centers:plot.centers,scales:plot.scales})};
+  window.ArpesWorkspace={getResult:()=>result,getZone:()=>zone,getConfig:read,getView:()=>({zoom:plot.zoom,azimuth:plot.azimuth,panX:plot.panX,panY:plot.panY,elevation:plot.elevation,dragMode:plot.dragMode,centers:plot.centers,scales:plot.scales})};
 }());

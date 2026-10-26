@@ -94,6 +94,11 @@ test('All occupied cells cover every measured point in both dimensions, includin
     A.zoneCenters(folded,true).forEach(c=>close(A.norm(c),0));
   }
 });
+test('All occupied cells retain the reference cell even when no sample falls inside it',()=>{
+  const simulation={cell:{reciprocal:[[1,0,0],[0,1,0],[0,0,1]]},points:[{displayed:[-2,0,3]},{displayed:[2,0,3]}]};
+  const primary=A.zoneCenters(simulation)[0],centers=A.zoneCenters(simulation,true);
+  vectorClose(primary,[0,0,3]);vectorClose(centers[0],primary);assert.equal(centers.length,3);
+});
 const B=require(path.join(path.dirname(__dirname),'assets','js','arpes-analysis.js'));
 test('Normal-emission energy curve agrees with momentum and excludes emission threshold',()=>{
   for(const energy of [6,21.2,100,1000])close(B.normalKz(config({}),energy),A.momentum(config({photonEnergy:energy}),0,0)[2]);

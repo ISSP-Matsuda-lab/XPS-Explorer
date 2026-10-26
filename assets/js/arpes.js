@@ -20,7 +20,7 @@
   };
   const DEFAULTS = {dimension:2,bravais:'hexagonal',system:'orthogonal',centering:'P',a:3.8,b:3.8,c:6,alpha:90,beta:90,gamma:90,
     photonEnergy:21.2,innerPotential:15,workFunction:4.5,offsetSlit:0,offsetPerpendicular:0,azimuth:0,normal:'0, 0, 1',slitDirection:'1, 0, 0',
-    scanMode:'deflector',slitStart:-15,slitEnd:15,scanStart:-15,scanEnd:15,slitCount:31,scanCount:31,units:'angstrom',showBZ:true,allZones:false,fold:false,whiteBackground:false,colorScale:'viridis',colorBy:'slit'};
+    scanMode:'deflector',slitStart:-15,slitEnd:15,scanStart:-15,scanEnd:15,slitCount:31,scanCount:31,units:'angstrom',showBZ:true,allZones:false,fold:false,whiteBackground:false,colorScale:'rainbow',colorBy:'scan'};
   function finite(value,label) { if (!Number.isFinite(value)) throw Error(label+' must be a finite number.'); return value; }
   function positive(value,label) { finite(value,label); if(value<=0)throw Error(label+' must be positive.'); return value; }
   function lattice(config) {
@@ -164,9 +164,11 @@
   function zoneCenters(simulation,all=false) {
     const nearest=nearestSolver(simulation.cell.reciprocal),points=simulation.points.map(p=>p.displayed);
     if(!points.length)return [];
-    if(!all)return [nearest(scale(points.reduce(add,[0,0,0]),1/points.length)).shift];
+    const primary=nearest(scale(points.reduce(add,[0,0,0]),1/points.length)).shift;
+    if(!all)return [primary];
     const centers=new Map();
-    for(const point of points){const shift=nearest(point).shift,key=shift.map(v=>Math.round(v*1e8)).join(',');if(!centers.has(key))centers.set(key,shift);}
+    // Keep the single-zone reference, even when a sparse scan does not sample it.
+    for(const shift of [primary,...points.map(point=>nearest(point).shift)]){const key=shift.map(v=>Math.round(v*1e8)).join(',');if(!centers.has(key))centers.set(key,shift);}
     return [...centers.values()];
   }
   function displayScales(config){
