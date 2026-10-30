@@ -135,16 +135,52 @@
         ctx.textAlign='center';ctx.fillText(`kₓ (${unit})`,(left+right)/2,h-10);ctx.save();ctx.translate(16,(top+bottom)/2);ctx.rotate(-Math.PI/2);ctx.fillText(`kᵧ (${scales.units[1]})`,0,0);ctx.restore();
       }
       ctx.save();ctx.beginPath();ctx.rect(dim===2?left:0,dim===2?top:0,dim===2?right-left:w,dim===2?bottom-top:h);ctx.clip();
+      // Index projected edges by screen tile to keep dense, repeated-zone maps responsive.
+      const zoneEdges=new Map(),edgeTileSize=32;
       // Draw the reference cell last to preserve green on shared boundaries.
       if(c.showBZ)for(const center of [...this.centers].reverse()){
         const primary=A.norm(A.sub(center,this.centers[0]))<1e-8,stroke=zoneColor(center,c.whiteBackground,this.centers[0]);
         if(dim===2){const face=this.zone.faces[0].map(v=>project(A.add(v,center)));ctx.beginPath();face.forEach((v,i)=>i?ctx.lineTo(v[0],v[1]):ctx.moveTo(v[0],v[1]));ctx.closePath();ctx.fillStyle=stroke+'0b';ctx.fill();}
-        for(const edge of this.zone.edges)line(project(A.add(edge[0],center)),project(A.add(edge[1],center)),stroke,primary?1.8:1.2);
+        for(const edge of this.zone.edges){
+          const a=project(A.add(edge[0],center)),b=project(A.add(edge[1],center)),width=primary?1.8:1.2;
+          line(a,b,stroke,width);
+          if(dim===3){
+            const edge={a,b,stroke,width},padding=4; // Maximum point radius plus half the edge width.
+            const x0=Math.floor(Math.max(-padding,Math.min(a[0],b[0])-padding)/edgeTileSize),x1=Math.floor(Math.min(w+padding,Math.max(a[0],b[0])+padding)/edgeTileSize);
+            const y0=Math.floor(Math.max(-padding,Math.min(a[1],b[1])-padding)/edgeTileSize),y1=Math.floor(Math.min(h+padding,Math.max(a[1],b[1])+padding)/edgeTileSize);
+            for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++){
+              const key=`${x},${y}`;if(!zoneEdges.has(key))zoneEdges.set(key,[]);zoneEdges.get(key).push(edge);
+            }
+          }
+        }
       }
       const value=p=>c.colorBy==='scan'?p.scan:c.colorBy==='kz'?p.absolute[2]*scales.factors[2]:p.slit,values=this.data.points.map(value),lo=Math.min(...values),hi=Math.max(...values);
       this.projected=this.data.points.map((p,i)=>({screen:project(p.displayed),point:p,value:values[i],index:i})).sort((a,b)=>b.screen[2]-a.screen[2]);
       const pointRadius=this.data.points.length>6000?1.4:dim===2?2.2:2.5;
-      for(const p of this.projected){ctx.fillStyle=color(c.colorScale,hi===lo?.5:(p.value-lo)/(hi-lo));ctx.beginPath();ctx.arc(p.screen[0],p.screen[1],pointRadius,0,Math.PI*2);ctx.fill();}
+      for(const p of this.projected){
+        ctx.fillStyle=color(c.colorScale,hi===lo?.5:(p.value-lo)/(hi-lo));ctx.beginPath();ctx.arc(p.screen[0],p.screen[1],pointRadius,0,Math.PI*2);ctx.fill();
+        // Points are painted back to front. Restore only the portions of zone edges
+        // nearer than this point, clipped to its disk so rear edges stay behind it.
+        let clipped=false;
+        const nearbyEdges=zoneEdges.get(`${Math.floor(p.screen[0]/edgeTileSize)},${Math.floor(p.screen[1]/edgeTileSize)}`)||[];
+        for(const edge of nearbyEdges){
+          let {a,b}=edge;const depth=p.screen[2]+1e-10,radius=pointRadius+edge.width/2;
+          if(Math.min(a[2],b[2])>depth)continue;
+          if(p.screen[0]<Math.min(a[0],b[0])-radius||p.screen[0]>Math.max(a[0],b[0])+radius||p.screen[1]<Math.min(a[1],b[1])-radius||p.screen[1]>Math.max(a[1],b[1])+radius)continue;
+          if(Math.max(a[2],b[2])>depth){
+            const t=(depth-a[2])/(b[2]-a[2]),intersection=a.map((v,i)=>v+(b[i]-v)*t);
+            if(a[2]>depth)a=intersection;else b=intersection;
+          }
+          const dx=b[0]-a[0],dy=b[1]-a[1],length2=dx*dx+dy*dy;
+          if(length2<1e-12)continue;
+          const t=Math.max(0,Math.min(1,((p.screen[0]-a[0])*dx+(p.screen[1]-a[1])*dy)/length2));
+          if((a[0]+t*dx-p.screen[0])**2+(a[1]+t*dy-p.screen[1])**2>radius*radius)continue;
+          // The current path is still the point's circle until the first line.
+          if(!clipped){ctx.save();ctx.clip();clipped=true;}
+          line(a,b,edge.stroke,edge.width);
+        }
+        if(clipped)ctx.restore();
+      }
       ctx.restore();
       if(dim===3){
         for(let i=0;i<3;i++){

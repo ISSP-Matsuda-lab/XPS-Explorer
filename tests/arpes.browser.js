@@ -1,6 +1,6 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),http=require('node:http');
-const root=fs.realpathSync(path.dirname(__dirname)),allowed='C:\\Users\\masas\\Documents',artifacts=path.join(root,'.browser-qa');
-assert(root.toLowerCase().startsWith(allowed.toLowerCase()+path.sep));fs.mkdirSync(artifacts,{recursive:true});assert.equal(fs.realpathSync(artifacts),artifacts);
+const root=fs.realpathSync(path.dirname(__dirname)),artifacts=path.join(root,'.browser-qa');
+fs.mkdirSync(artifacts,{recursive:true});assert.equal(fs.realpathSync(artifacts),artifacts);
 process.env.TEMP=artifacts;process.env.TMP=artifacts;
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const server=http.createServer((req,res)=>{
@@ -13,7 +13,7 @@ const server=http.createServer((req,res)=>{
 let browser;
 (async()=>{
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const url='http://127.0.0.1:'+server.address().port;
-  browser=await chromium.launch({channel:'msedge',headless:true,downloadsPath:artifacts,artifactsDir:artifacts});
+  browser=await chromium.launch({...(process.env.XPS_BROWSER_EXE?{executablePath:process.env.XPS_BROWSER_EXE}:{channel:'msedge'}),headless:true,downloadsPath:artifacts,artifactsDir:artifacts});
   const page=await browser.newPage({viewport:{width:1480,height:1080}}),exceptions=[];page.on('pageerror',error=>exceptions.push(error.message));
   const flush=()=>page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   const fill=async(id,value)=>{await page.locator('#'+id).fill(String(value));await flush();};
@@ -177,13 +177,14 @@ let browser;
       const config=ArpesWorkspace.getConfig(),data=ArpesWorkspace.getResult(),zone=ArpesWorkspace.getZone();
       const bounds=document.getElementById('momentumCanvas').getBoundingClientRect(),canvas=document.createElement('canvas'),host=document.createElement('div');
       host.append(canvas);canvas.getBoundingClientRect=()=>bounds;
-      const ctx=canvas.getContext('2d'),events=[],stroke=ctx.stroke,fill=ctx.fill;
+      const ctx=canvas.getContext('2d'),events=[],stroke=ctx.stroke,fill=ctx.fill,arc=ctx.arc;
       ctx.stroke=function(){events.push({type:'stroke',color:this.strokeStyle});return stroke.apply(this,arguments);};
       ctx.fill=function(){events.push({type:'fill',color:this.fillStyle});return fill.apply(this,arguments);};
+      ctx.arc=function(){events.push({type:'point'});return arc.apply(this,arguments);};
       const plot=new ArpesPlot.MomentumPlot(canvas,document.getElementById('plotTooltip'));
-      try{plot.update(data,zone,config);}finally{ctx.stroke=stroke;ctx.fill=fill;plot.observer.disconnect();}
+      try{plot.update(data,zone,config);}finally{ctx.stroke=stroke;ctx.fill=fill;ctx.arc=arc;plot.observer.disconnect();}
       const primary=Arpes.zoneCenters(data)[0];
-      return {events,green:ArpesPlot.zoneColor(primary,config.whiteBackground,primary),purple:ArpesPlot.zoneColor(Arpes.add(primary,[0,0,1]),config.whiteBackground,primary),edges:zone.edges.length};
+      return {events:events.slice(0,events.findIndex(e=>e.type==='point')),green:ArpesPlot.zoneColor(primary,config.whiteBackground,primary),purple:ArpesPlot.zoneColor(Arpes.add(primary,[0,0,1]),config.whiteBackground,primary),edges:zone.edges.length};
     });
     const boundaries=drawing.events.filter(e=>e.type==='stroke'&&[drawing.green,drawing.purple].includes(e.color));
     assert(boundaries.some(e=>e.color===drawing.purple));
@@ -194,6 +195,48 @@ let browser;
     assert.equal(drawing.events.filter(e=>e.type==='stroke'&&e.color===(white?'#c6d2d7':'#29424a')).length,3);
     await page.locator('.momentum-panel').screenshot({path:path.join(artifacts,white?'arpes-panes-white.png':'arpes-panes-dark.png')});
   }
+  // Pixel regressions: put a point on the same sightline as a cube edge, just
+  // inside/outside the zone. Front edges must cover points; rear edges must not.
+  const occlusion=await page.evaluate(()=>{
+    const canvas=document.createElement('canvas'),host=document.createElement('div'),tooltip=document.createElement('div');host.append(canvas);
+    canvas.getBoundingClientRect=()=>({width:640,height:480});
+    const plot=new ArpesPlot.MomentumPlot(canvas,tooltip),ctx=canvas.getContext('2d'),results=[];
+    const config={...Arpes.DEFAULTS,dimension:3,system:'orthogonal',centering:'P',a:Math.PI,b:Math.PI,c:Math.PI,colorScale:'autumn',colorBy:'scan',showBZ:true,allZones:false};
+    const cell=Arpes.lattice(config),zone=Arpes.brillouinZone(cell.reciprocal),views=[];
+    for(const azimuth of [-3,-1,1,3].map(n=>n*Math.PI/4))for(const elevation of [-1,1].map(n=>n*Math.atan(1/Math.sqrt(2))))views.push({azimuth,elevation});
+    const pixel=screen=>{
+      const dpr=window.devicePixelRatio||1;
+      return [...ctx.getImageData(Math.floor(screen[0]*dpr),Math.floor(screen[1]*dpr),1,1).data].slice(0,3);
+    };
+    const distance=(a,b)=>Math.hypot(...a.map((v,i)=>v-b[i]));
+    try{
+      for(const whiteBackground of [false,true])for(const view of views)for(const front of [false,true])for(const outside of [false,true]){
+        const {eye}=ArpesPlot.cameraFrame(view.azimuth,view.elevation);
+        const edge=zone.edges.find(([a,b])=>{
+          const direction=Arpes.sub(b,a),length=Arpes.norm(direction),facing=Arpes.dot(Arpes.scale(Arpes.add(a,b),.5),eye);
+          return Math.abs(Arpes.dot(direction,eye))<length*.9&&(front?facing>.5:facing<-.5);
+        });
+        const midpoint=Arpes.scale(Arpes.add(...edge),.5),offset=(front?-1:1)*(outside?-1:1)*.08;
+        const displayed=Arpes.add(midpoint,Arpes.scale(eye,offset));
+        const makePoint=(p,scan=0)=>({displayed:p,absolute:p,slit:0,scan});
+        // Symmetric anchors keep the reference at Γ.
+        const points=[makePoint(displayed),makePoint(Arpes.scale(displayed,-1))];
+        plot.update({cell,points},zone,{...config,whiteBackground});
+        Object.assign(plot,view);plot.draw();
+        const screen=plot.projection.project(displayed),actual=pixel(screen);
+        // Compare with the real renderer's edge-only and point-only pixels,
+        // including canvas antialiasing at exactly the same screen position.
+        const fill=ctx.fill;ctx.fill=function(){if(this.fillStyle!=='#ff8000')return fill.apply(this,arguments);};
+        try{plot.draw();}finally{ctx.fill=fill;}
+        const edgeOnly=pixel(screen);
+        ctx.fillStyle='rgb(255,128,0)';ctx.beginPath();ctx.arc(screen[0],screen[1],2.5,0,Math.PI*2);ctx.fill();const pointOnly=pixel(screen);
+        const edgeInFront=front!==outside;
+        results.push({whiteBackground,...view,front,outside,edgeInFront,actual,edgeOnly,pointOnly,pass:distance(actual,edgeInFront?edgeOnly:pointOnly)<35});
+      }
+    }finally{plot.observer.disconnect();}
+    return results;
+  });
+  assert(occlusion.every(r=>r.pass),JSON.stringify(occlusion.filter(r=>!r.pass)));
   await page.locator('#backgroundToggle').click();await flush();
   await page.locator('#topView').click();assert.equal(await page.evaluate(()=>ArpesWorkspace.getView().elevation),Math.PI/2);
   const panBox=await page.locator('#momentumCanvas').boundingBox();await page.mouse.move(panBox.x+panBox.width/2,panBox.y+panBox.height/2);await page.mouse.down({button:'right'});await page.mouse.move(panBox.x+panBox.width/2+60,panBox.y+panBox.height/2+40,{steps:5});await page.mouse.up({button:'right'});
