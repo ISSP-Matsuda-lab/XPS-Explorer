@@ -20,10 +20,10 @@ assert.match(
 assert.match(indexHtml, /Relative photoionization cross section \(max = 1\)/, 'the reference-only plot should declare its cross-section axis');
 assert.match(indexHtml, /assets\/js\/photoionization-cross-sections\.js/, 'the photoionization data should load before the application');
 assert.match(indexHtml, /assets\/js\/photoionization\.js/, 'the photoionization calculator should load before the application');
-assert.match(indexHtml, /<input id="showPICross" type="checkbox" checked \/> PIcross/, 'PIcross should be an enabled-by-default display toggle');
-assert.match(appSource, /showPICross:showPICrossInput\.checked/, 'the PIcross setting should be saved in the workspace');
-assert.match(appSource, /showPICrossInput\.checked=ui\.showPICross!==false/, 'older workspaces should restore with PIcross enabled');
-assert.match(appSource, /crossSectionEnabled=showPICrossInput\.checked/, 'plot rendering should follow the PIcross toggle');
+assert.match(indexHtml, /<input id="showPICross" type="checkbox" checked \/> Cross Sec\./, 'Cross Sec. should be an enabled-by-default display toggle');
+assert.match(appSource, /showPICross:showPICrossInput\.checked/, 'the Cross Sec. setting should be saved in the workspace');
+assert.match(appSource, /showPICrossInput\.checked=ui\.showPICross!==false/, 'older workspaces should restore with Cross Sec. enabled');
+assert.match(appSource, /crossSectionEnabled=showPICrossInput\.checked/, 'plot rendering should follow the Cross Sec. toggle');
 
 [
   ['Cr', '5414.8'],

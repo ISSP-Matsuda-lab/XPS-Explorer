@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="結晶構造からXPSの軌道別IMFP、深さによる減衰、光イオン化断面積を考慮したピーク面積を予測します。" />
+  <title>XPS Escape Depth — IMFP &amp; Peak Intensity</title>
+  <link rel="icon" type="image/png" sizes="64x64" href="assets/favicon-64.png" />
+  <link rel="stylesheet" href="assets/css/app.css" />
+  <link rel="stylesheet" href="assets/css/escape-depth.css" />
+  <link rel="stylesheet" href="assets/css/site-menu.css" />
+  <script src="assets/js/i18n.js"></script>
+  <script src="assets/js/i18n-depth.js"></script>
+  <script src="assets/js/i18n-film.js"></script>
+  <script src="assets/js/i18n-reference.js"></script>
+  <script src="assets/js/i18n-messages.js"></script>
+</head>
+<body class="depth-app">
+  <main class="app">
+    <header>
+      <div><div class="eyebrow">Surface Analysis Toolkit</div><h1>XPS Escape Depth</h1><div class="subtitle">結晶構造から読み解く、光電子の脱出深さとピーク強度</div></div>
+      <div class="header-actions"><nav class="app-menu" aria-label="アプリ切り替え"></nav><div class="model-switch" role="group" aria-label="IMFPの計算方法"><button type="button" data-imfp-model="tpp" aria-pressed="true">TPP-2M</button><button type="button" data-imfp-model="dielectric" aria-pressed="false">誘電関数</button></div><button id="resetWorkspace" class="reset-all" type="button">Reset all</button></div>
+    </header>
+    <p id="storageStatus" class="storage-status" role="status" aria-live="polite" hidden></p>
+    <div class="depth-layout">
+      <section class="panel structure-panel" aria-labelledby="structureTitle">
+        <div class="toolbar"><strong id="structureTitle">結晶構造と表面</strong><label class="file-button">CIF / POSCARを開く<input id="structureFile" type="file" accept=".cif,.vasp,.poscar,.txt,chemical/x-cif" aria-label="結晶構造ファイルを開く" /></label></div>
+        <div class="structure-body">
+          <div><label class="field" for="latticeVectors">格子ベクトル a, b, c / Å（各行にx y z）</label><textarea id="latticeVectors" rows="4" spellcheck="false" aria-describedby="structureHelp"></textarea><label class="field" for="atomicSites">単位胞内の原子 · 元素 x y z [占有率]</label><textarea id="atomicSites" rows="9" spellcheck="false" aria-describedby="structureHelp"></textarea><p id="structureHelp" class="field-help">座標は分率座標。占有率の省略時は1。全原子を入力し、境界の重複原子は除いてください。2D格子は2行、またはc = 0などの3行で入力できます。ゼロベクトルの座標成分は位置に寄与しません。CIFの対称操作は自動展開します。</p></div>
+          <div class="surface-controls">
+            <div class="field"><span>表面方位（Miller指数）</span><div class="miller-fields"><label>h<input id="millerH" type="number" min="-30" max="30" step="1" value="0" /></label><label>k<input id="millerK" type="number" min="-30" max="30" step="1" value="0" /></label><label>l<input id="millerL" type="number" min="-30" max="30" step="1" value="1" /></label></div></div>
+            <label class="field"><span>表面終端の位相 / d<sub>hkl</sub></span><input id="surfacePhase" type="number" min="0" max="1" step="any" value="0" /></label>
+            <p class="field-help">0は原点を通る面。+法線側を真空、−法線側を試料として切り出します。位相1は0と等価です。厚さ0では使用しません。</p>
+            <label class="field">試料厚さ / nm<input id="sampleThickness" type="number" min="0" max="10000" step="any" value="10" aria-describedby="sheetHelp" /></label>
+            <p id="sheetHelp" class="field-help">0で完全な2次元系。全原子を1層として数え、減衰を0（脱出確率1）に固定します。体積0の格子は厚さ0を自動適用し、最初の独立な2本を面内基底として面積を求めます。その場合、Miller指数と終端位相は使用しません。</p>
+            <div id="structureSummary" class="structure-summary"></div><button id="recalculate" class="primary-action" type="button">計算を更新</button><span class="field-help">数値・座標の変更は自動反映されます。</span>
+          </div>
+          <div class="slab-preview"><span class="field">原子層の深さ</span><svg id="structurePlot" viewBox="0 0 260 330" role="img" aria-label="表面からの深さに沿った元素別原子層"></svg><p class="field-help">横方向は元素別の列。円は原子層を表し、最初の100層まで表示します。</p></div>
+        </div>
+        <p id="importStatus" class="import-status" role="status" aria-live="polite"></p>
+
+      </section>
+
+      <aside class="panel material-panel" aria-labelledby="materialTitle">
+        <div class="toolbar"><strong id="materialTitle">材料の物性パラメーター</strong><span id="materialModelBadge" class="model-badge">TPP-2M</span></div>
+        <div class="panel-body">
+          <label class="field">構造・材料のサンプル<select id="samplePreset"><option value="si">Si · diamond</option><option value="cu">Cu · fcc</option><option value="nacl">NaCl · rock salt</option><option value="custom">Custom</option></select></label>
+          <div class="field-grid"><label class="field">密度 ρ / g cm⁻³<input id="density" type="number" min="0.001" step="any" value="2.329" required /></label><label class="field">モル質量 M / g mol⁻¹<input id="molarMass" type="number" min="0.001" step="any" value="28.085" required /></label><label class="field">価電子数 Nv / 化学式単位<input id="valence" type="number" min="0.001" step="any" value="4" required /></label><label class="field">バンドギャップ Eg / eV<input id="bandGap" type="number" min="0" step="any" value="1.12" required /></label></div>
+          <p class="field-help">MとNvは同じ化学式単位で指定します。ρ・M・NvはTPP-2Mで使用し、誘電関数モードではEgを使用します。結晶を編集・読み込みした場合は、材料値と損失関数も試料に合わせて更新してください。</p>
+          <div class="formula-card"><span>検出に寄与する原子の有効面密度</span><strong>N<sub>eff,i</sub> = Σ<sub>j</sub> ρ<sub>j</sub> P<sub>i</sub>(z<sub>j</sub>)</strong><span>ρ<sub>j</sub>：原子層jの面密度（nm⁻²）。軌道iと同じ元素の層を合計します。</span><span>深さzからの無損失脱出確率</span><strong>P<sub>i</sub>(z) = exp[−z / (λ<sub>i</sub> cos θ)]</strong></div>
+          <p class="field-help">同じ材料内では、軌道ごとの運動エネルギーの違いがIMFPの違いになります。</p>
+        </div>
+      </aside>
+
+
+
+      <section id="dielectricPanel" class="panel dielectric-panel" aria-labelledby="dielectricTitle" hidden>
+        <div class="toolbar"><strong id="dielectricTitle">誘電関数からのIMFP · Penn SPA近似</strong><label class="file-button">損失関数 / CSVを開く<input id="dielectricFile" type="file" accept=".csv,.txt,.tsv" aria-label="誘電データを開く" /></label></div>
+        <div class="dielectric-body">
+          <div><label class="field">入力形式<select id="dielectricFormat"><option value="elf">損失エネルギー / eV, Im(−1/ε)</option><option value="epsilon">損失エネルギー / eV, ε₁, ε₂</option></select></label><label class="field" for="dielectricData">光学極限 q = 0 のデータ（カンマ・空白・タブ区切り）</label><textarea id="dielectricData" rows="9" spellcheck="false" placeholder="# loss_energy_eV, Im(-1/epsilon)"></textarea><p id="dielectricImportStatus" class="import-status" role="status"></p><p class="field-help">エネルギーは昇順、損失関数は無次元・非負で入力します。点間は線形補間します。材料の実測値または計算値を入力してください。</p></div>
+          <div><div class="field-grid"><label class="field">価電子帯幅 Ev / eV<input id="valenceBandwidth" type="number" min="0" step="any" value="0" /></label><label class="field">固体内エネルギー補正 / eV<input id="dielectricOffset" type="number" min="-100" max="100" step="any" value="0" /></label></div><label class="field">データ範囲外の扱い<select id="dielectricRange"><option value="strict">0〜電子エネルギーを含むデータを要求</option><option value="zero">範囲外の損失を0として打ち切る（近似）</option></select></label><p class="field-help">E = 表の運動エネルギー + 補正値、T′ = E + Ev。半導体のEvは価電子帯幅、金属ではフェルミエネルギーです。Egは材料の物性パラメーターを使います。初期値0はエネルギー基準を一致させる仮定です。</p><p class="field-help">非相対論的Penn単極近似（SPA）、E = 200〜10000 eV。参照論文のFull Penn法とは異なります。低エネルギーの電子正孔励起や相対論効果を完全には扱いません。測定範囲の不足は自動補完せず、計算停止または明示した打ち切りで扱います。</p><p class="field-help"><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC7047655/" target="_blank" rel="noopener noreferrer">指定論文 · Full Penn / エネルギー基準</a> · <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC5524379/" target="_blank" rel="noopener noreferrer">Penn SPA · 単極分散式</a></p></div>
+        </div>
+      </section>
+
+      <section class="panel peak-panel" aria-labelledby="peakTitle">
+        <div class="toolbar"><strong id="peakTitle">軌道別のIMFP・予測ピーク面積</strong><span class="hint">E<sub>B</sub>・σ・λを補正できます</span><button id="exportResults" class="plot-layout-button" type="button">CSV出力</button></div>
+        <div class="source-bar depth-source">
+          <label>励起光源<select id="photonPreset"><option value="1486.6">Al Kα · 1486.6 eV</option><option value="1253.6">Mg Kα · 1253.6 eV</option><option value="5414.8">Cr Kα · 5414.8 eV</option><option value="8047.8">Cu Kα · 8047.8 eV</option><option value="9251.7">Ga Kα · 9251.7 eV</option><option value="custom">Custom</option></select></label>
+          <label>励起光エネルギー hν / eV<input id="photonEnergy" type="number" min="0.1" step="any" value="1486.6" required /></label>
+          <label>仕事関数 φ / eV<input id="workFunction" type="number" min="0" step="any" value="4.5" required /></label>
+          <label>検出角 θ / °（表面法線から）<input id="emissionAngle" type="number" min="0" max="89.9" step="any" value="0" required /></label>
+        </div>
+        <div id="calculationStatus" class="calculation-status" role="status" aria-live="polite"></div>
+        <div id="calculationError" class="calculation-error" role="alert" hidden></div>
+        <details id="filmEstimator" class="film-estimator" aria-labelledby="filmTitle">
+          <summary class="film-heading"><strong id="filmTitle">Adsorbed layer · thickness from measured peak areas</strong><button id="exportFilm" class="plot-layout-button" type="button" disabled>Export film CSV</button></summary>
+          <div class="film-measurements-scroll" tabindex="0" role="region" aria-label="Adsorbate peak inputs"><div class="film-measurements">
+            <label class="field">Adsorbed element<select id="filmElement"></select></label>
+            <label class="field">Film orbital<select id="filmOrbital"></select></label>
+            <label class="field">Substrate reference peak<select id="filmReference"></select></label>
+            <label class="field">Measured film peak area<input id="filmArea" type="number" min="0" step="any" placeholder="Background-subtracted area" aria-describedby="filmAreaHelp" /></label>
+            <label class="field">Measured substrate peak area<input id="filmSubstrateArea" type="number" min="0" step="any" placeholder="Positive background-subtracted area" aria-describedby="filmAreaHelp" /></label>
+            <label class="field">Emitter number density in film / atoms nm⁻³<input id="filmNumberDensity" type="number" min="0.000001" step="any" placeholder="Required material property" /></label>
+          </div></div>
+          <p id="filmAreaHelp" class="field-help">Enter fitted, background-subtracted areas in the same units, before sensitivity-factor correction. Both peaks use the photon energy, work function, and emission angle at the top of this panel. The film/substrate ratio is calculated automatically.</p>
+          <p id="filmSavedRatio" class="field-help" hidden></p>
+          <div class="film-transport-row">
+            <label class="field">Film attenuation<select id="filmAttenuation"><option value="none">No attenuation</option><option value="tpp">Film TPP-2M</option><option value="manual">Manual attenuation lengths</option></select></label>
+            <div id="filmTppFields" class="film-transport-fields" hidden>
+              <label class="field" title="Film molar mass / g mol⁻¹">Film M / g mol⁻¹<input id="filmMolarMass" type="number" min="0.000001" step="any" placeholder="Required" /></label>
+              <label class="field" title="Film valence electrons per formula unit">Film Nv / formula unit<input id="filmValence" type="number" min="0.000001" step="any" placeholder="Required" /></label>
+              <label class="field">Selected atoms ν / formula unit<input id="filmEmitterAtoms" type="number" min="0.000001" step="any" value="1" /></label>
+              <label class="field">Film Eg / eV<input id="filmGap" type="number" min="0" step="any" placeholder="0 for metals" /></label>
+            </div>
+            <div id="filmManualFields" class="film-transport-fields" hidden>
+              <label class="field">Film-electron length La / nm<input id="filmLambda" type="number" min="0.000001" step="any" placeholder="At the film peak kinetic energy" /></label>
+              <label class="field">Substrate-electron length Ls,f / nm<input id="filmSubstrateLambda" type="number" min="0.000001" step="any" placeholder="At the substrate peak kinetic energy" /></label>
+            </div>
+          </div>
+          <p id="filmTppHelp" class="field-help" hidden>M, Nv, and ν refer to the same film formula unit. ν counts the selected element (1 for a pure element, 2 for O in SiO₂). Film density ρ = na M / (602.214 ν). TPP-2M: 50–2000 eV; 2000–10000 eV is extrapolated.</p>
+          <p id="filmManualHelp" class="field-help" hidden>Both lengths describe transport inside the film, at the respective peak energies. Enter IMFPs or suitable EALs along the electron path; the shared emission angle supplies cosθ.</p>
+          <div class="film-inline"><span id="filmRatioLabel">Peak-area ratio · film / substrate</span>: <output id="filmRatio" for="filmArea filmSubstrateArea" aria-labelledby="filmRatioLabel">—</output><p id="filmEnergySummary" class="field-help"></p><p id="filmTransportSummary" class="field-help" aria-live="polite"></p></div>
+          <div class="film-results">
+            <div id="filmError" class="calculation-error" role="status" hidden></div>
+            <div class="film-secondary"><span><span>Film atoms per area / nm⁻²</span>: <output id="filmArealDensity">—</output></span><span><span>Substrate surface-cell area / nm²</span>: <output id="filmCellArea">—</output></span></div>
+            <p id="filmStatus" class="calculation-status" role="status"></p>
+            <details><summary>Thickness model and assumptions</summary><div class="model-notes">
+              <p>Without attenuation: R = measured film area / measured substrate area. Adsorbate areal density = R Ys,0 / σa; thickness t = R Ys,0 / (σa na); atoms per surface cell = R Ys,0 Acell / σa. Convert σa from Mb to nm² (×10⁻⁴). Ys,0 includes the substrate cross section and its internal depth attenuation.</p>
+              <p>With attenuation: R(t) = σa na a [1 − exp(−t/a)] exp(t/b) / Ys,0, where a = La cosθ and b = Ls,f cosθ. Solve for t, then atoms per surface cell = na t Acell. Film TPP-2M calculates both lengths in the film at their respective kinetic energies; manual mode uses the supplied lengths.</p>
+              <p>Transmission and angular sensitivity are assumed equal for both peaks. Binding energies and cross sections use the shared excitation conditions. Attenuation modes assume a flat, fully covering, uniform film and a narrow angular acceptance. Thickness is an equivalent uniform-film value; molecular counts and fractional coverage are not inferred.</p>
+              <p>Acell is the substrate surface-cell area used by the crystal calculation: V/dhkl for a 3D cell, or the in-plane cell area for a zero-volume 2D lattice. The atom count refers to the selected adsorbate element per input surface cell, including supercells, not per bulk volume cell or automatically reduced primitive cell.</p>
+            </div></details>
+          </div>
+        </details>
+        <p class="table-help">予測面積 Y = σ[nm²] × N<sub>eff</sub>[nm⁻²] は無次元です。光子1個あたり・全立体角の無損失電子収量に相当します。1 Mb = 10⁻⁴ nm²。検出カウント数は下の装置条件から別途見積もります。面積比は計算できた軌道内で規格化した値で、原子濃度ではありません。</p>
+        <div class="result-metrics peak-metrics" aria-live="polite"><div><span>表面方位・面間隔 / 2D面積</span><strong id="surfaceMetric">—</strong></div><div><span>軌道別 IMFP</span><strong id="imfpMetric">—</strong></div><div><span>Estimated film thickness / nm</span><strong id="filmThickness">—</strong></div><div><span>Adsorbate atoms / substrate surface cell</span><strong id="filmAtomsPerCell">—</strong></div></div>
+        <div class="peak-table-scroll"><table class="prediction-table"><colgroup><col style="width: 10%" /><col style="width: 8%" /><col style="width: 8%" /><col style="width: 9%" /><col style="width: 9%" /><col style="width: 11%" /><col style="width: 9%" /><col style="width: 9%" /><col style="width: 7%" /><col style="width: 9%" /><col style="width: 11%" /></colgroup><thead><tr><th scope="col">軌道</th><th scope="col">E<sub>B</sub> / eV</th><th scope="col">E<sub>kin</sub> / eV</th><th scope="col">σ / Mb</th><th scope="col">IMFP λ / nm</th><th scope="col">情報深さ95% / nm</th><th scope="col">N<sub>eff</sub> / nm⁻²</th><th scope="col">予測面積 Y / 無次元</th><th scope="col">面積比 / %</th><th scope="col">予測 counts</th><th scope="col">データ / 状態</th></tr></thead><tbody id="peakRows"></tbody></table></div>
+      </section>
+
+      <details id="calibrationDetails" class="panel calibration-panel"><summary>装置条件を使ったカウント数の見積もり</summary><div class="panel-body"><label class="calibration-toggle"><input id="enableCounts" type="checkbox" /> 光子数・検出条件から積分カウント数を算出する</label><div class="calibration-fields"><label class="field">照射領域全体の光子数 / s<input id="photonFlux" type="number" min="1" step="any" value="1e10" /></label><label class="field">積算時間 / s<input id="acquisitionTime" type="number" min="0.001" step="any" value="1" /></label><label class="field">検出立体角 ΔΩ / sr<input id="solidAngle" type="number" min="0" max="12.566370614359172" step="any" value="0.01" /></label><label class="field">1 keVでの透過率 × 検出効率<input id="detectionEfficiency" type="number" min="0" max="1" step="any" value="0.1" /></label><label class="field">透過関数の指数 p<input id="transmissionExponent" type="number" min="-5" max="5" step="any" value="0" /></label></div><p class="field-help">Counts = Y × 光子数/s × 時間 × ΔΩ/(4π) × η<sub>1keV</sub>(E<sub>kin</sub>/1000)<sup>p</sup>。等方放出、小さな検出角範囲、一様な照射を仮定します。初期値は例示値です。実測の絶対値に合わせるには装置校正が必要です。</p></div></details>
+
+      <details id="modelDetails" class="panel model-panel"><summary>計算モデル・単位・適用範囲</summary><div class="panel-body model-notes">
+        <p>厚さが正の場合は、入力した単位胞を周期的に繰り返す、均質な結晶の平坦なスラブを扱います。面間隔d = 1/|h a* + k b* + l c*|（逆格子は2πを含まない）、各サイトの面密度は占有率 × d/Vです。整数の面指数は最大公約数で約分します。層の深さは z<sub>j,n</sub> = mod(s − h·f<sub>j</sub>, 1)d + nd。0 ≤ z &lt; 厚さの層を足し合わせます。</p>
+        <p>厚さ0では、入力セルの全原子を表面に投影した1層として扱い、減衰は0、P = 1に固定します。N<sub>eff,i</sub> = Σ<sub>j</sub> 占有率<sub>j</sub>/A（同じ元素の原子jを合計）、Y<sub>i</sub> = σ<sub>i</sub>N<sub>eff,i</sub>。体積0の2D格子では最初の独立な2本u, vから A = |u × v| を求め、厚さ0を自動適用します。残るベクトルは座標変換に使い、周期の追加には使いません。3Dの真空セルを厚さ0で扱う場合は面内周期に対応したMiller指数を指定し、A = V/dを使用します。面積0の格子は扱えません。</p>
+        <p>N<sub>eff</sub> = Σ<sub>j,n</sub> (占有率<sub>j</sub> d/V) exp[−z<sub>j,n</sub>/(λ cosθ)]。Y = σ N<sub>eff</sub>。1 Mb = 10⁻¹⁸ cm² = 10⁻⁴ nm²。厚さが正の場合、情報深さ95% = −ln(0.05) λ cosθ は均質な半無限連続体の参考値で、有限の原子層に対する累積深さではありません。厚さ0では全原子が表面にあるため情報深さ95%も0です。2DのIMFP表示はバルク材料の参考値で、面積計算には使用しません。材料値不足・IMFP範囲外でも断面積があれば面積を算出します。</p>
+        <p>TPP-2M（nm）：λ = E/{E<sub>p</sub>²[β ln(γE) − C/E + D/E²]}、E<sub>p</sub> = 28.816√U、U = Nvρ/M、β = −1 + 9.44/√(E<sub>p</sub>² + Eg²) + 0.69ρ<sup>0.1</sup>、γ = 0.191ρ<sup>−0.5</sup>、C = 19.7 − 9.1U、D = 534 − 208U。</p>
+        <p>50〜2000 eVを基本範囲とし、2000〜10000 eVは非相対論式の外挿として表示します。それ以外はIMFPの手入力が必要です。本画面は指定された近似として E = hν − E<sub>B</sub> − φ をIMFPにも使います。厳密な固体内エネルギーの基準や分析器の仕事関数との違いに注意し、必要ならλを上書きしてください。</p>
+        <p>弾性散乱・光電子回折・偏光と角度非対称性・表面再構成・粗さ・多層膜の異なるIMFP・光の吸収は含みません。IMFPは実効減衰長（EAL）とは異なります。厚い試料、高い角度分解能、絶対定量には追加のモデルや校正が必要です。</p>
+        <p>結合エネルギーは既存アプリのLBNL参照値で、化学シフトはE<sub>B</sub>欄で補正します。断面積はYeh–Lindauの全サブシェル値を統計重率でスピン軌道分割し、対数空間で補間します。手入力したσは表示された1成分の値として扱います。表の「自動」は上書き値を解除します。</p>
+        <p><a href="https://www.nist.gov/system/files/documents/srd/SRD71UsersGuideV1-2.pdf" target="_blank" rel="noopener noreferrer">NIST SRD 71 · TPP-2Mと適用範囲</a> · <a href="https://doi.org/10.6084/m9.figshare.12389750.v3" target="_blank" rel="noopener noreferrer">Kalha et al. · Yeh–Lindauデジタルデータ（CC BY 4.0）</a> · <a href="https://xdb.lbl.gov/Section1/Sec_1-1.html" target="_blank" rel="noopener noreferrer">LBNL · 結合エネルギー</a></p>
+      </div></details>
+    </div>
+    <footer class="depth-footer">構造・入力条件・軌道の設定はこのブラウザーに自動保存され、ページ更新時に復元されます。右上のReset allで初期状態に戻せます。構造ファイルは外部に送信しません。</footer>
+  </main>
+  <script src="assets/js/binding-energies.js"></script>
+  <script src="assets/js/photoionization-cross-sections.js"></script>
+  <script src="assets/js/photoionization.js"></script>
+  <script src="assets/js/dielectric.js"></script>
+  <script src="assets/js/escape-depth.js"></script>
+  <script src="assets/js/escape-depth-app.js"></script>
+  <script src="assets/js/film-thickness.js"></script>
+  <script src="assets/js/film-thickness-app.js"></script>
+  <script src="assets/js/site-menu.js"></script>
+</body>
+</html>

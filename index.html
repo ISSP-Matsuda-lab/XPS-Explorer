@@ -24,6 +24,7 @@
   <link rel="icon" type="image/png" sizes="64x64" href="assets/favicon-64.png" />
   <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png" />
   <link rel="stylesheet" href="assets/css/app.css" />
+  <link rel="stylesheet" href="assets/css/site-menu.css" />
   <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -44,6 +45,11 @@
     window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
   </script>
   <script defer src="/_vercel/insights/script.js"></script>
+  <script src="assets/js/i18n.js"></script>
+  <script src="assets/js/i18n-depth.js"></script>
+  <script src="assets/js/i18n-film.js"></script>
+  <script src="assets/js/i18n-reference.js"></script>
+  <script src="assets/js/i18n-messages.js"></script>
 </head>
 <body>
   <main class="app">
@@ -54,7 +60,7 @@
         <div class="subtitle">Energy reference viewer for core levels and Auger transitions</div>
         <p class="seo-intro">Search XPS core-level binding energies, Auger transitions, and candidate peak assignments using Al Kα, Mg Kα, or custom excitation energies.</p>
       </div>
-      <div class="header-actions"><div class="status"><span class="dot"></span> Reference mode</div><button id="resetAll" class="reset-all" type="button">Reset all</button></div>
+      <div class="header-actions"><nav class="app-menu" aria-label="Applications"><a href="index.html" aria-current="page">Energy Reference</a><a href="escape-depth.html">IMFP &amp; Peak Intensity</a></nav><div class="status"><span class="dot"></span> Reference mode</div><button id="resetAll" class="reset-all" type="button">Reset all</button></div>
     </header>
     <div class="layout">
       <section class="panel">
@@ -98,7 +104,7 @@
           <div class="layer-control" aria-label="Peak types to display">
             <label class="check"><input id="showCore" type="checkbox" checked /> Core</label>
             <label class="check"><input id="showAuger" type="checkbox" /> Auger</label>
-            <label class="check"><input id="showPICross" type="checkbox" checked /> PIcross</label>
+            <label class="check"><input id="showPICross" type="checkbox" checked /> Cross Sec.</label>
           </div>
         </div>
       </section>
@@ -106,25 +112,37 @@
         <h2>Selected elements</h2>
         <div id="selection" class="selection"></div>
         <button id="clear" class="clear">Clear selection</button>
-        <div class="notice">Reference binding energies are for neutral atoms. Peak positions vary with chemical state, charging, source, and work function. Levels above the photon energy are not shown. When PIcross is enabled, core-line heights use Yeh–Lindau atomic photoionization cross sections and are normalized to the strongest selected peak.</div>
+        <div class="notice">Reference binding energies are for neutral atoms. Peak positions vary with chemical state, charging, source, and work function. Levels above the photon energy are not shown. When Cross Sec. is enabled, core-line heights use Yeh–Lindau atomic photoionization cross sections and are normalized to the strongest selected peak.</div>
       </aside>
       <details id="energyDetails" class="panel energy-details" open>
         <summary><strong id="energyDetailsTitle">Peak energies</strong><span id="energyDetailsHint" class="hint"></span></summary>
         <div class="energy-tools">
-          <div class="segmented" aria-label="Energy table mode">
-            <button id="selectedEnergyMode" class="active" type="button">Selected elements</button>
-            <button id="searchEnergyMode" type="button">Energy search</button>
+          <div class="energy-mode-controls">
+            <div class="segmented" aria-label="Energy table mode">
+              <button id="selectedEnergyMode" class="active" type="button">Selected elements</button>
+              <button id="searchEnergyMode" type="button">Energy search</button>
+            </div>
+            <div id="energySearchKindField" class="energy-search-control" hidden>
+              <label for="energySearchKind">Search by</label>
+              <select id="energySearchKind"><option value="energy">Peak energy</option><option value="splitting">Spin-orbit splitting</option></select>
+            </div>
           </div>
+          <form id="addElementForm" class="element-entry">
+            <label for="elementName">Add element</label>
+            <div class="element-entry-inputs"><input id="elementName" type="text" list="elementNames" placeholder="Symbol or element name" autocomplete="off" aria-describedby="elementEntryMessage" /><button type="submit">Add</button></div>
+            <datalist id="elementNames" data-no-i18n></datalist>
+            <span id="elementEntryMessage" role="status"></span>
+          </form>
           <div id="energySearchFields" class="energy-search-fields" hidden>
             <div class="energy-search-control">
-              <label for="peakEnergy">Peak energy</label>
+              <label id="peakEnergyLabel" for="peakEnergy">Peak energy</label>
               <div class="energy-search-inputs"><input id="peakEnergy" type="number" min="0" step="0.1" value="285.0" inputmode="decimal" /><span class="unit">eV</span><input id="peakEnergyRange" type="range" min="0" max="1486.6" step="0.1" value="285.0" aria-label="Adjust peak energy" /></div>
             </div>
             <div class="energy-search-control">
               <label for="energyTolerance">Search width (±)</label>
-              <div class="energy-search-inputs"><input id="energyTolerance" type="number" min="0" max="10" step="0.1" value="0.5" inputmode="decimal" /><span class="unit">eV</span><input id="energyToleranceRange" type="range" min="0" max="10" step="0.1" value="0.5" aria-label="Adjust search width" /></div>
+              <div class="energy-search-inputs"><input id="energyTolerance" type="number" min="0" max="10" step="0.1" value="1.0" inputmode="decimal" /><span class="unit">eV</span><input id="energyToleranceRange" type="range" min="0" max="10" step="0.1" value="1.0" aria-label="Adjust search width" /></div>
             </div>
-            <div class="energy-search-control">
+            <div id="excitationOrderControl" class="energy-search-control">
               <span class="control-label">Excitation order</span>
               <div class="segmented" aria-label="Excitation orders to include">
                 <button id="firstOrderOnly" class="active" type="button">First order only</button>
@@ -275,6 +293,8 @@
   <script src="assets/js/photoionization.js"></script>
   <script src="assets/js/xy-parser.js"></script>
   <script src="assets/js/fitting.js"></script>
+  <script src="assets/js/reference-search.js"></script>
   <script src="assets/js/app.js"></script>
+  <script src="assets/js/site-menu.js"></script>
 </body>
 </html>

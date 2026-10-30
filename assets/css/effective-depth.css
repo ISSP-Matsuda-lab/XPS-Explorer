@@ -1,0 +1,17 @@
+.eal-layout { display: grid; grid-template-columns: minmax(310px, .8fr) minmax(0, 1.6fr); gap: 18px; }
+.eal-layout > * { min-width: 0; }
+.eal-notes { grid-column: 1 / -1; }
+.angle-explanation { display:grid; grid-template-columns:minmax(270px,.7fr) minmax(0,1.3fr); gap:24px; align-items:center; }
+#angleDiagram { width:100%; max-height:330px; }
+@media(max-width:850px){ .angle-explanation { grid-template-columns:1fr; } }
+.eal-formulas { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.eal-chart { padding: 8px 20px; }
+#ealPlot { display: block; width: 100%; min-height: 240px; }
+.eal-table-wrap { padding: 0 20px; overflow: auto; }
+.eal-table { border-collapse: collapse; width: 100%; font-size: 12px; font-variant-numeric: tabular-nums; }
+.eal-table th, .eal-table td { padding: 12px 8px; text-align: right; border-bottom: 1px solid var(--line); }
+.eal-table th { color: var(--muted); font-size: 11px; }
+.eal-table th:first-child, .eal-table td:first-child { text-align: left; }
+.eal-table td:nth-child(2) { color: var(--accent); }
+@media(max-width: 900px) { .eal-layout { grid-template-columns: 1fr; } }
+@media(max-width: 540px) { .eal-formulas { grid-template-columns: 1fr; gap: 0; } .eal-chart { padding: 8px; } }

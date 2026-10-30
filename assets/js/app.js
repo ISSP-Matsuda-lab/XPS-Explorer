@@ -70,6 +70,9 @@
     symbols.slice(57,71).forEach((s,i)=>coord[s]=[8,i+4]); symbols.slice(89,103).forEach((s,i)=>coord[s]=[9,i+4]);
     const SEARCH_WIDTH_MAX=10, STORAGE_DB='xps-peak-explorer', STORAGE_VERSION=1, STORAGE_STORE='workspace', STORAGE_KEY='current';
     const ANALYSIS_CODES={constant:'bg',height:'nh',area:'na'};
+    let energySearchKind='energy';
+    const searchQueries={energy:{target:'285.0',width:'1.0'},splitting:{target:'1.0',width:'0.1'}};
+    const energySearchKindInput=document.querySelector('#energySearchKind'),energySearchKindField=document.querySelector('#energySearchKindField'),peakEnergyLabel=document.querySelector('#peakEnergyLabel'),excitationOrderControl=document.querySelector('#excitationOrderControl'),addElementForm=document.querySelector('#addElementForm'),elementNameInput=document.querySelector('#elementName'),elementEntryMessage=document.querySelector('#elementEntryMessage');
     const selected = new Map(), dataFiles = [], selectedSpectra = new Set(), analysisSnapshots = new Map(), plotOrder=[], layoutSelection=new Set(), layoutDirty=new Set(), mobilePlotPointers=new Map(); let mode='binding', energyTableMode='selected', photon=1486.6, workFunction=4.5, includeHigherOrderExcitation=false, zoomDomain=null, zoomYDomain=null, plotScale=null, dragStart=null, dragSelection=null, offsetDrag=null, mobilePlotGesture=null, pendingAnalysis=null, activeAnalysis='raw', nextSpectrumId=0, analysisMessageTimer=null, storageReady=false, saveTimer=null, storageDatabase=null, plotLegendState={visible:false,x:.72,y:.12,entries:{}}, legendDrag=null, editingLegendId=null, focusedSpectrumId=null;
     const periodic=document.querySelector('#periodic'), selection=document.querySelector('#selection'), svg=document.querySelector('#plot'), tip=document.querySelector('#tooltip'), photonPreset=document.querySelector('#photonPreset'), photonEnergy=document.querySelector('#photonEnergy'), workFunctionInput=document.querySelector('#workFunction');
     const bindingButton=document.querySelector('#binding'), kineticButton=document.querySelector('#kinetic'), showCoreInput=document.querySelector('#showCore'), showAugerInput=document.querySelector('#showAuger'), showPICrossInput=document.querySelector('#showPICross'), axisLabelElement=document.querySelector('#axisLabel'), clearButton=document.querySelector('#clear');
@@ -85,7 +88,7 @@
     async function readStoredWorkspace(){const db=await openStorage();return new Promise((resolve,reject)=>{const request=db.transaction(STORAGE_STORE,'readonly').objectStore(STORAGE_STORE).get(STORAGE_KEY);request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error)})}
     function workspaceState(){return{
       version:2,selected:[...selected],dataFiles,selectedSpectra:[...selectedSpectra],analysisSnapshots:[...analysisSnapshots].map(([id,snapshot])=>[id,{...snapshot,points:[...snapshot.points]}]),activeAnalysis,nextSpectrumId,
-      ui:{mode,energyTableMode,photon,workFunction,includeHigherOrderExcitation,zoomDomain,zoomYDomain,plotOrder:[...plotOrder],plotLegend:plotLegendState,showCore:showCoreInput.checked,showAuger:showAugerInput.checked,showPICross:showPICrossInput.checked,peakEnergy:peakEnergyInput.value,energyTolerance:energyToleranceInput.value,energyDetailsOpen:energyDetails.open,dataPanelOpen:dataPanel.open}
+      ui:{mode,energyTableMode,energySearchKind,searchQueries:{...searchQueries,[energySearchKind]:{target:peakEnergyInput.value,width:energyToleranceInput.value}},photon,workFunction,includeHigherOrderExcitation,zoomDomain,zoomYDomain,plotOrder:[...plotOrder],plotLegend:plotLegendState,showCore:showCoreInput.checked,showAuger:showAugerInput.checked,showPICross:showPICrossInput.checked,peakEnergy:peakEnergyInput.value,energyTolerance:energyToleranceInput.value,energyDetailsOpen:energyDetails.open,dataPanelOpen:dataPanel.open}
     }}
     async function persistWorkspace(){
       if(!storageReady)return;
@@ -99,7 +102,14 @@
       analysisSnapshots.clear();(state.analysisSnapshots||[]).forEach(([id,snapshot])=>analysisSnapshots.set(id,{...snapshot,points:new Map(snapshot.points||[])}));
       activeAnalysis=state.activeAnalysis==='raw'||analysisSnapshots.has(state.activeAnalysis)?state.activeAnalysis:'raw';nextSpectrumId=Number.isInteger(state.nextSpectrumId)?state.nextSpectrumId:0;
       const ui=state.ui||{};mode=ui.mode==='kinetic'?'kinetic':'binding';energyTableMode=ui.energyTableMode==='search'?'search':'selected';photon=Number.isFinite(ui.photon)&&ui.photon>0?ui.photon:1486.6;workFunction=Number.isFinite(ui.workFunction)&&ui.workFunction>=0?ui.workFunction:4.5;includeHigherOrderExcitation=Boolean(ui.includeHigherOrderExcitation);zoomDomain=Array.isArray(ui.zoomDomain)?ui.zoomDomain:null;zoomYDomain=Array.isArray(ui.zoomYDomain)?ui.zoomYDomain:null;plotOrder.splice(0,plotOrder.length,...(Array.isArray(ui.plotOrder)?ui.plotOrder:[]));normalizePlotOrder();plotLegendState=normalizeLegendState(ui.plotLegend);
-      showCoreInput.checked=ui.showCore!==false;showAugerInput.checked=Boolean(ui.showAuger);showPICrossInput.checked=ui.showPICross!==false;photonEnergy.value=String(photon);const preset=[...photonPreset.options].find(option=>option.value!=='custom'&&Number(option.value)===photon);photonPreset.value=preset?preset.value:'custom';workFunctionInput.value=String(workFunction);peakEnergyInput.value=ui.peakEnergy??'285.0';energyToleranceInput.value=ui.energyTolerance??'0.5';energyDetails.open=ui.energyDetailsOpen!==false;dataPanel.open=ui.dataPanelOpen===true;
+      showCoreInput.checked=ui.showCore!==false;showAugerInput.checked=Boolean(ui.showAuger);showPICrossInput.checked=ui.showPICross!==false;photonEnergy.value=String(photon);const preset=[...photonPreset.options].find(option=>option.value!=='custom'&&Number(option.value)===photon);photonPreset.value=preset?preset.value:'custom';workFunctionInput.value=String(workFunction);energyDetails.open=ui.energyDetailsOpen!==false;dataPanel.open=ui.dataPanelOpen===true;
+      energySearchKind=ui.energySearchKind==='splitting'?'splitting':'energy';
+      for(const kind of ['energy','splitting']){
+        const saved=ui.searchQueries?.[kind];
+        if(saved)searchQueries[kind]={target:saved.target??searchQueries[kind].target,width:saved.width??searchQueries[kind].width};
+      }
+      if(!ui.searchQueries)searchQueries.energy={target:ui.peakEnergy??'285.0',width:ui.energyTolerance??'1.0'};
+      energySearchKindInput.value=energySearchKind;peakEnergyInput.value=searchQueries[energySearchKind].target;energyToleranceInput.value=searchQueries[energySearchKind].width;
       document.querySelectorAll('.element').forEach(button=>button.classList.toggle('selected',selected.has(button.querySelector('.symbol').textContent)));bindingButton.classList.toggle('active',mode==='binding');kineticButton.classList.toggle('active',mode==='kinetic');axisLabelElement.textContent=mode==='binding'?'Binding energy (eV) — high to low':'Kinetic energy (eV) — low to high';firstOrderOnlyButton.classList.toggle('active',!includeHigherOrderExcitation);includeHigherOrdersButton.classList.toggle('active',includeHigherOrderExcitation);
       return true;
     }
@@ -114,6 +124,16 @@
       });
     }
     function elementButton(s){return [...periodic.children].find(x=>x.querySelector('.symbol').textContent===s)}
+    ReferenceSearch.elements.filter(element=>peaks[element.symbol]).forEach(element=>{
+      const option=document.createElement('option');option.value=element.symbol;option.label=element.name;document.querySelector('#elementNames').append(option);
+    });
+    addElementForm.onsubmit=event=>{
+      event.preventDefault();const symbol=ReferenceSearch.resolveElement(elementNameInput.value);
+      if(!symbol||!peaks[symbol]){elementEntryMessage.textContent='Enter an element symbol or name with reference data (H–U).';return}
+      if(selected.has(symbol)){elementEntryMessage.textContent='This element is already selected.';return}
+      toggle(symbol,elementButton(symbol));elementNameInput.value='';elementEntryMessage.textContent='';elementNameInput.focus();
+    };
+    elementNameInput.oninput=()=>{elementEntryMessage.textContent=''};
     function displayedEnergy(raw,type){return (mode==='kinetic'&&type==='core')||(mode==='binding'&&type==='auger')?photon-raw-workFunction:raw}
     function peakTypeLabel(){
       const labels=[];
@@ -138,8 +158,17 @@
       const modeLabel=mode==='binding'?'Binding energy':'Kinetic energy'; energyDetailsTitle.textContent=`${modeLabel} values`; energyDetailsHint.textContent=`${peakTypeLabel()} · ${photon.toLocaleString()} eV source · φ ${workFunction.toLocaleString()} eV`;
       energyList.innerHTML='';
       energySearchFields.hidden=energyTableMode!=='search';
+      energySearchKindField.hidden=energyTableMode!=='search';addElementForm.hidden=energyTableMode!=='selected';
+      const splitting=energySearchKind==='splitting';
+      peakEnergyLabel.textContent=splitting?'Spin-orbit splitting':'Peak energy';
+      peakEnergyRange.setAttribute('aria-label',splitting?'Adjust spin-orbit splitting':'Adjust peak energy');
+      excitationOrderControl.hidden=splitting;
       selectedEnergyMode.classList.toggle('active',energyTableMode==='selected');searchEnergyMode.classList.toggle('active',energyTableMode==='search');
-      if(energyTableMode==='search'){renderEnergySearch(modeLabel);return}
+      if(energyTableMode==='search'){
+        if(splitting){energyDetailsTitle.textContent='Spin-orbit splitting values';energyDetailsHint.textContent='Reference doublets · all photon energies';renderSplittingSearch();}
+        else renderEnergySearch(modeLabel);
+        return;
+      }
       energySearchSummary.textContent='';
       if(!selected.size){energyList.innerHTML='<div class="empty">Select an element to display its energy values</div>';return}
       const rows=[];selected.forEach((item,s)=>{if(showCoreInput.checked)rows.push({item,s,kind:'Core',type:'core',values:peaks[s].core});if(showAugerInput.checked&&peaks[s].auger.length)rows.push({item,s,kind:'Auger',type:'auger',values:peaks[s].auger})});
@@ -147,7 +176,17 @@
       const labels=[...new Set(rows.flatMap(row=>row.values.map(([label])=>label)))].sort(compareOrbitals);
       const table=document.createElement('table');table.className='energy-table';
       table.innerHTML=`<thead><tr><th scope="col">Element</th><th scope="col">Type</th>${labels.map(label=>`<th scope="col">${label}</th>`).join('')}</tr></thead>`;
-      const body=document.createElement('tbody');rows.forEach(({item,s,kind,type,values})=>{const valuesByLabel=new Map(values),atomicNumber=symbols.indexOf(s)+1;const row=document.createElement('tr');row.className=item.visible?'':'is-hidden';row.innerHTML=`<th scope="row" style="color:${item.color}">${s}<sup class="atomic-number">${atomicNumber}</sup></th><td>${kind}</td>${labels.map(label=>{if(!valuesByLabel.has(label))return '<td>—</td>';const raw=valuesByLabel.get(label),energy=displayedEnergy(raw,type),overPhoton=energy>photon;return `<td><span class="energy-value${overPhoton?' is-over-photon':''}">${energy>=0?energy.toFixed(1):'—'} eV</span></td>`}).join('')}`;body.append(row)});table.append(body);energyList.append(table);
+      const body=document.createElement('tbody');rows.forEach(({item,s,kind,type,values})=>{const valuesByLabel=new Map(values),atomicNumber=symbols.indexOf(s)+1;const row=document.createElement('tr');row.className=item.visible?'':'is-hidden';row.dataset.element=s;row.innerHTML=`<th scope="row" style="color:${item.color}">${s}<sup class="atomic-number">${atomicNumber}</sup></th><td>${kind}</td>${labels.map(label=>{if(!valuesByLabel.has(label))return '<td>—</td>';const raw=valuesByLabel.get(label),energy=displayedEnergy(raw,type),overPhoton=energy>photon;return `<td><span class="energy-value${overPhoton?' is-over-photon':''}">${energy>=0?energy.toFixed(1):'—'} eV</span></td>`}).join('')}`;body.append(row)});table.append(body);
+      const layout=document.createElement('div');layout.className='selected-energy-layout';
+      const removals=document.createElement('div');removals.className='energy-row-actions';
+      const spacer=document.createElement('div');spacer.className='energy-actions-heading';spacer.setAttribute('aria-hidden','true');removals.append(spacer);
+      rows.forEach(({s})=>{
+        const slot=document.createElement('div');slot.className='energy-row-action';
+        const button=document.createElement('button');button.type='button';button.className='remove-element';button.dataset.element=s;button.textContent='×';
+        button.setAttribute('aria-label',`Remove ${s} from selection`);button.title='Remove from selection';button.onclick=()=>toggle(s,elementButton(s));
+        slot.append(button);removals.append(slot);
+      });
+      layout.append(removals,table);energyList.append(layout);
       const legend=document.createElement('p');legend.className='energy-legend';legend.textContent=`● Red: ${modeLabel} exceeds the excitation photon energy`;energyList.append(legend);
     }
     function renderEnergySearch(modeLabel){
@@ -166,6 +205,21 @@
       table.innerHTML='<thead><tr><th scope="col">Element</th><th scope="col">Type</th><th scope="col">Level / transition</th><th scope="col">Excitation</th><th scope="col">Energy</th><th scope="col">Difference</th></tr></thead>';
       const body=document.createElement('tbody');matches.forEach(({symbol,kind,level,order,energy,difference})=>{const row=document.createElement('tr'),atomicNumber=symbols.indexOf(symbol)+1;const excitation=order?`Order ${order} (${(photon*order).toFixed(1)} eV)`:'—';row.innerHTML=`<th scope="row" style="color:${elementColor(symbol)}">${symbol}<sup class="atomic-number">${atomicNumber}</sup></th><td>${kind}</td><td>${level}</td><td>${excitation}</td><td><span class="energy-value">${energy.toFixed(1)} eV</span></td><td>${difference>=0?'+':''}${difference.toFixed(1)} eV</td>`;body.append(row)});table.append(body);energyList.append(table);
       const note=document.createElement('p');note.className='energy-legend';note.textContent=`Searching ${modeLabel.toLowerCase()} · Core uses ${includeHigherOrderExcitation?'first- to third-order':'first-order'} excitation; Auger uses order-independent kinetic energy`;energyList.append(note);
+    }
+    function renderSplittingSearch(){
+      const target=peakEnergyInput.valueAsNumber,width=normalizedSearchWidth();
+      if(!Number.isFinite(target)||target<0||!Number.isFinite(width)){energySearchSummary.textContent='';energyList.innerHTML='<div class="empty">Enter a non-negative splitting and search width</div>';return}
+      const matches=ReferenceSearch.searchSplittings(coreLevels,target,width);
+      energySearchSummary.textContent=`${target.toFixed(2)} ± ${width.toFixed(2)} eV · ${matches.length.toLocaleString()} matches`;
+      const note=document.createElement('p');note.className='energy-legend splitting-note';note.textContent='Absolute binding-energy difference within the same subshell. All tabulated doublets are searched, regardless of photon energy or Core / Auger display settings. Reference values may vary with chemical state.';
+      if(!matches.length){energyList.innerHTML='<div class="empty">No elements match the specified range</div>';energyList.append(note);return}
+      const table=document.createElement('table');table.className='energy-table energy-search-table';
+      table.innerHTML='<thead><tr><th scope="col">Element</th><th scope="col">Doublet</th><th scope="col">Binding energies (eV)</th><th scope="col">Splitting</th><th scope="col">Difference</th></tr></thead>';
+      const body=document.createElement('tbody');
+      matches.forEach(({symbol,level,partner,first,second,splitting,difference})=>{
+        const row=document.createElement('tr');row.dataset.element=symbol;
+        row.innerHTML=`<th scope="row" style="color:${elementColor(symbol)}">${symbol}<sup class="atomic-number">${symbols.indexOf(symbol)+1}</sup></th><td>${level} / ${partner}</td><td>${first.toFixed(2)} / ${second.toFixed(2)}</td><td>${splitting.toFixed(2)} eV</td><td>${difference>=0?'+':''}${difference.toFixed(2)} eV</td>`;body.append(row);
+      });table.append(body);energyList.append(table,note);
     }
     function axisScale(value){ const rough=Math.max(value/8,1e-9), power=10**Math.floor(Math.log10(rough)), fraction=rough/power, step=(fraction<=1?1:fraction<=2?2:fraction<=5?5:10)*power; return {step,max:Math.ceil(value/step)*step}; }
     function dataColor(index){const colors=['#62c9f5','#d88cff','#ff8e77','#7de0a3','#ffd166','#8aa8ff','#f47fb3','#64d8cb'];return colors[index%colors.length]}
@@ -192,7 +246,7 @@
             const spectrumRow=document.createElement('div');spectrumRow.className='series-row';
             const label=document.createElement('label');label.className='series-option';label.style.setProperty('--series-color',s.color);
             const input=document.createElement('input');input.type='checkbox';input.dataset.spectrumId=s.id;input.checked=selectedSpectra.has(s.id);input.onchange=()=>{if(input.checked){selectedSpectra.add(s.id);s.groupPlotHidden=false}else selectedSpectra.delete(s.id);zoomDomain=null;zoomYDomain=null;renderDataBrowser();renderPlot()};
-            const text=document.createElement('span');text.textContent=s.region;const meta=document.createElement('small'),style=plotStyle(s),offsetText=Math.abs(style.xOffset)>1e-12||Math.abs(style.yOffset)>1e-12?` · Δx ${style.xOffset.toFixed(3)} eV · Δy ${formatIntensity(style.yOffset)}`:'';meta.textContent=`ID ${s.spectrumId||'—'} · C${s.cycle||'0'}/${s.curve||'0'} · ${s.points.length.toLocaleString()} points${offsetText}`;label.title=`${s.group} / ${s.region} / Spectrum ${s.spectrumId||'—'}`;label.append(input,text,meta);spectrumRow.append(label);
+            const text=document.createElement('span');text.dataset.noI18n='';text.textContent=s.region;const meta=document.createElement('small'),style=plotStyle(s),offsetText=Math.abs(style.xOffset)>1e-12||Math.abs(style.yOffset)>1e-12?` · Δx ${style.xOffset.toFixed(3)} eV · Δy ${formatIntensity(style.yOffset)}`:'';meta.textContent=`ID ${s.spectrumId||'—'} · C${s.cycle||'0'}/${s.curve||'0'} · ${s.points.length.toLocaleString()} points${offsetText}`;label.title=`${s.group} / ${s.region} / Spectrum ${s.spectrumId||'—'}`;label.append(input,text,meta);spectrumRow.append(label);
             const rowActions=document.createElement('div');rowActions.className='series-row-actions';const addFit=document.createElement('button');addFit.type='button';addFit.className='add-fit';addFit.textContent='+';addFit.title='Add fitting result';addFit.setAttribute('aria-label',`Add fitting result for ${s.region}`);addFit.onclick=()=>openFitDialog(s);rowActions.append(addFit);spectrumRow.append(rowActions);entry.append(spectrumRow);
             const resultCount=spectrumResultCount(s);if(resultCount){const fitting=document.createElement('details');fitting.className='series-fitting';fitting.open=s.fitResultsOpen!==false;fitting.ontoggle=()=>{s.fitResultsOpen=fitting.open;schedulePersist()};const fitHead=document.createElement('summary');fitHead.className='series-fitting-head';const fitLabel=document.createElement('strong');fitLabel.textContent='Fitting results';const fitCount=document.createElement('span');fitCount.className='hint';fitCount.dataset.fitCount=s.id;fitHead.append(fitLabel,fitCount);const results=document.createElement('div');results.className='series-fit-results';results.dataset.fitResults=s.id;fitting.append(fitHead,results);entry.append(fitting)}series.append(entry)
           });
@@ -317,7 +371,7 @@
     function startMobilePlotGesture(){
       if(!plotScale||!mobilePlotPointers.size){mobilePlotGesture=null;return}
       const points=[...mobilePlotPointers.values()].slice(0,2),scale={W:plotScale.W,H:plotScale.H,left:plotScale.left,right:plotScale.right,top:plotScale.top,bottom:plotScale.bottom};
-      mobilePlotGesture={type:points.length>1?'pinch':'pan',points:points.map(point=>({...point})),domain:plotScale.domain.slice(),yDomain:plotScale.axisKind==='intensity'?plotScale.yDomain.slice():null,scale};
+      mobilePlotGesture={type:points.length>1?'pinch':'pan',points:points.map(point=>({...point})),domain:plotScale.domain.slice(),yDomain:plotScale.yDomain?plotScale.yDomain.slice():null,scale};
       if(points.length>1){const [a,b]=points;mobilePlotGesture.distance=Math.hypot(a.x-b.x,a.y-b.y);mobilePlotGesture.center={x:(a.x+b.x)/2,y:(a.y+b.y)/2}}
     }
     function applyMobilePlotGesture(){
@@ -336,12 +390,12 @@
       renderPlot();
     }
     function renderPlot(){
-      const compact=isCompactPlot(),W=compact?500:900,H=compact?320:340,left=compact?66:82,right=compact?8:12,top=compact?18:14,bottom=compact?46:38,tickFont=compact?18:13,peakFont=compact?16:12,emptyFont=compact?15:13,domain=zoomDomain||automaticEnergyDomain(),span=domain[1]-domain[0],step=axisScale(span).step,spectra=visibleSpectra(domain),fitOverlays=visibleFitOverlays(domain),measurementYDomain=automaticIntensityDomain([...spectra,...fitOverlays]),crossSectionEnabled=showPICrossInput.checked,referenceAxis=crossSectionEnabled&&!measurementYDomain,yDomain=referenceAxis?[0,1]:(measurementYDomain?(zoomYDomain||measurementYDomain):null),ySpan=yDomain?yDomain[1]-yDomain[0]:null;
+      const compact=isCompactPlot(),W=compact?500:900,H=compact?320:340,left=compact?66:82,right=compact?8:12,top=compact?18:14,bottom=compact?46:38,tickFont=compact?18:13,peakFont=compact?16:12,emptyFont=compact?15:13,domain=zoomDomain||automaticEnergyDomain(),span=domain[1]-domain[0],step=axisScale(span).step,spectra=visibleSpectra(domain),fitOverlays=visibleFitOverlays(domain),measurementYDomain=automaticIntensityDomain([...spectra,...fitOverlays]),crossSectionEnabled=showPICrossInput.checked,referenceAxis=crossSectionEnabled&&!measurementYDomain,yDomain=referenceAxis?(zoomYDomain||[0,1]):(measurementYDomain?(zoomYDomain||measurementYDomain):null),ySpan=yDomain?yDomain[1]-yDomain[0]:null;
       svg.setAttribute('viewBox',`0 0 ${W} ${H}`); svg.innerHTML='';
       const defs=node('defs',{}),clip=node('clipPath',{id:'plotClip'});clip.append(node('rect',{x:left,y:top,width:W-left-right,height:H-top-bottom}));defs.append(clip);svg.append(defs);
       const x=e=>left+(mode==='binding'?(domain[1]-e):(e-domain[0]))/span*(W-left-right),y=value=>yDomain?top+(yDomain[1]-value)/ySpan*(H-top-bottom):H-bottom; plotScale={W,H,left,right,top,bottom,domain,yDomain,x,y,axisKind:referenceAxis?'cross-section':measurementYDomain?'intensity':'none',fitFontSize:compact?15:11,fitLineHeight:compact?20:15,annotationEdge:compact?145:190};
       for(let e=Math.ceil(domain[0]/step)*step;e<=domain[1]+step/1000;e+=step){const value=Number(e.toPrecision(12)),xx=x(value),line=node('line',{x1:xx,y1:top,x2:xx,y2:H-bottom,stroke:'#1f3940','stroke-width':1});svg.append(line);const t=node('text',{x:xx,y:H-(compact?14:10),fill:'#a4b9b6','font-size':tickFont,'font-weight':600,'text-anchor':'middle'});t.textContent=value.toLocaleString();svg.append(t)}
-      if(yDomain){const yStep=axisScale(ySpan).step;for(let value=Math.ceil(yDomain[0]/yStep)*yStep;value<=yDomain[1]+yStep/1000;value+=yStep){const yy=y(value);svg.append(node('line',{x1:left,y1:yy,x2:W-right,y2:yy,stroke:'#1f3940','stroke-width':1}));const t=node('text',{x:left-(compact?8:10),y:yy+(compact?6:4),fill:'#a4b9b6','font-size':tickFont,'font-weight':600,'text-anchor':'end'});t.textContent=referenceAxis?Number(value.toFixed(2)).toString():formatIntensity(value);svg.append(t)}svg.append(node('line',{x1:left,y1:top,x2:left,y2:H-bottom,stroke:'#426069'}))}
+      if(yDomain){const yStep=axisScale(ySpan).step;for(let value=Math.ceil(yDomain[0]/yStep)*yStep;value<=yDomain[1]+yStep/1000;value+=yStep){const yy=y(value);svg.append(node('line',{x1:left,y1:yy,x2:W-right,y2:yy,stroke:'#1f3940','stroke-width':1}));const t=node('text',{x:left-(compact?8:10),y:yy+(compact?6:4),fill:'#a4b9b6','font-size':tickFont,'font-weight':600,'text-anchor':'end'});t.textContent=referenceAxis?Number(value.toPrecision(6)).toString():formatIntensity(value);svg.append(t)}svg.append(node('line',{x1:left,y1:top,x2:left,y2:H-bottom,stroke:'#426069'}))}
       const activeAnalysisType=analysisSnapshots.get(activeAnalysis)?.type;yAxisLabel.hidden=!yDomain;if(yDomain)yAxisLabel.textContent=referenceAxis?'Relative photoionization cross section (max = 1)':(!activeAnalysisType||activeAnalysisType==='constant'?'Intensity (counts/s)':'Normalized intensity');coreLegendText.textContent=crossSectionEnabled?'Core level (height ∝ σ)':'Core level';crossSectionLegend.hidden=!crossSectionEnabled;
       svg.append(node('line',{x1:left,y1:H-bottom,x2:W-right,y2:H-bottom,stroke:'#426069'}));
       drawSpectra(spectra,x,y);drawFitOverlays(fitOverlays,x,y);
@@ -351,11 +405,12 @@
         const all=[];if(showCoreInput.checked)peaks[s].core.forEach(p=>all.push([...p,'core']));if(showAugerInput.checked)peaks[s].auger.forEach(p=>all.push([...p,'auger']));
         all.forEach(([label,raw,type],j)=>{
           const e=displayedEnergy(raw,type);if(e<domain[0]||e>domain[1]||e<0||e>photon||(type==='core'&&raw+workFunction>photon))return;
-          const crossSection=type==='core'&&crossSectionEnabled?crossSections.get(`${s}|${label}`):null,relative=crossSection?.relative,xx=x(e),relativePeakTop=referenceAxis?y(relative??.04):top+(1-(relative??.04))*(H-top-bottom),peakTop=type==='core'&&crossSectionEnabled?relativePeakTop:top+(ci%12)*3,dash=type==='auger'?'5 4':crossSectionEnabled&&!crossSection?'2 3':'0',opacity=type==='core'&&crossSectionEnabled&&!crossSection?.value?0.4:0.9;
-          const l=node('line',{class:`peak-line${type==='core'&&crossSectionEnabled&&!crossSection?' cross-section-unavailable':''}`,x1:xx,y1:peakTop,x2:xx,y2:H-bottom,stroke:type==='auger'?'#ffb45d':item.color,'stroke-width':2,'stroke-dasharray':dash,opacity}),title=node('title',{});
+          const crossSection=type==='core'&&crossSectionEnabled?crossSections.get(`${s}|${label}`):null,relative=crossSection?.relative,xx=x(e),relativePeakTop=referenceAxis?y(relative??.04):top+(1-(relative??.04))*(H-top-bottom),peakTop=type==='core'&&crossSectionEnabled?relativePeakTop:top,dash=type==='auger'?'5 4':crossSectionEnabled&&!crossSection?'2 3':'0',opacity=type==='core'&&crossSectionEnabled&&!crossSection?.value?0.4:0.9;
+          if(referenceAxis&&type==='core'&&(relative??.04)<yDomain[0])return;
+          const l=node('line',{class:`peak-line${type==='core'&&crossSectionEnabled&&!crossSection?' cross-section-unavailable':''}`,'clip-path':'url(#plotClip)',x1:xx,y1:peakTop,x2:xx,y2:referenceAxis&&type==='core'?y(0):H-bottom,stroke:type==='auger'?'#ffb45d':item.color,'stroke-width':2,'stroke-dasharray':dash,opacity}),title=node('title',{});
           title.textContent=type==='core'&&crossSection?`${s} ${label}: ${Photoionization.formatCrossSection(crossSection.value)} Mb (${(relative*100).toFixed(1)}% of maximum)`:type==='core'&&crossSectionEnabled?`${s} ${label}: cross section unavailable`:type==='core'?`${s} ${label}: core level`:`${s} ${label}: Auger transition`;l.append(title);
           l.onpointerdown=ev=>{if(isCompactPlot()){ev.preventDefault();ev.stopPropagation();hideDragMenu();showPeakTip(ev,s,label,e,raw,type,crossSection)}};l.onmouseenter=ev=>showPeakTip(ev,s,label,e,raw,type,crossSection);l.onmousemove=ev=>showPeakTip(ev,s,label,e,raw,type,crossSection);l.onmouseleave=hidePeakTip;svg.append(l);
-          const labelY=type==='core'&&crossSectionEnabled?Math.max(top+peakFont,Math.min(H-bottom-5,peakTop-5-(j%3)*3)):top+peakFont+((j+ci)%7)*(compact?21:17),t=node('text',{x:xx+(compact?5:4),y:labelY,fill:type==='auger'?'#ffb45d':item.color,'font-size':peakFont,'font-weight':650,opacity:type==='core'&&crossSectionEnabled&&!crossSection?0.65:1});t.textContent=`${s} ${label}`;svg.append(t)
+          const labelY=type==='core'&&crossSectionEnabled?Math.max(top+peakFont,Math.min(H-bottom-5,peakTop-5-(j%3)*3)):top+peakFont+((j+ci)%7)*(compact?21:17),t=node('text',{'clip-path':'url(#plotClip)',x:xx+(compact?5:4),y:labelY,fill:type==='auger'?'#ffb45d':item.color,'font-size':peakFont,'font-weight':650,opacity:type==='core'&&crossSectionEnabled&&!crossSection?0.65:1});t.textContent=`${s} ${label}`;svg.append(t)
         });ci++
       });
       renderPlotLegend();schedulePersist();
@@ -374,7 +429,7 @@
     function showDragMenu(ev,selection){if(isCompactPlot())return;const wrap=dragMenu.parentElement.getBoundingClientRect();dragMenu.querySelector('[data-action="zoom-xy"]').disabled=!selection.hasX||!selection.hasY;dragMenu.querySelector('[data-action="zoom-x"]').disabled=!selection.hasX;dragMenu.querySelector('[data-action="zoom-y"]').disabled=!selection.hasY;dragMenu.querySelectorAll('[data-action="constant"],[data-action="height"],[data-action="area"]').forEach(button=>button.disabled=!selection.hasX);dragMenu.hidden=false;const width=dragMenu.offsetWidth,height=dragMenu.offsetHeight;dragMenu.style.left=`${Math.max(8,Math.min(ev.clientX-wrap.left+8,wrap.width-width-8))}px`;dragMenu.style.top=`${Math.max(8,Math.min(ev.clientY-wrap.top+8,wrap.height-height-8))}px`;dragSelection=selection;dragMenu.querySelector('button:not(:disabled)').focus()}
     svg.onpointerdown=ev=>{if(ev.button!==0||!plotScale)return;hideDragMenu();if(isCompactPlot()){ev.preventDefault();hidePeakTip();mobilePlotPointers.set(ev.pointerId,pointerPoint(ev));try{svg.setPointerCapture(ev.pointerId)}catch(error){}startMobilePlotGesture();return}const point=pointerPoint(ev);if(ev.ctrlKey){ev.preventDefault();const spectrum=spectrumNearPlotPoint(point);if(!spectrum){showAnalysisMessage('No measurement spectrum was found near the pointer.');return}const style=plotStyle(spectrum),previousZoomDomain=zoomDomain?zoomDomain.slice():null,previousZoomYDomain=zoomYDomain?zoomYDomain.slice():null;zoomDomain=plotScale.domain.slice();zoomYDomain=plotScale.yDomain?plotScale.yDomain.slice():null;offsetDrag={pointerId:ev.pointerId,s:spectrum,startEnergy:energyAt(point.x),startIntensity:intensityAt(point.y),initialX:style.xOffset,initialY:style.yOffset,previousZoomDomain,previousZoomYDomain};svg.setPointerCapture(ev.pointerId);svg.classList.add('offset-dragging');return}if(ev.shiftKey){ev.preventDefault();const spectrum=spectrumNearPlotPoint(point);if(spectrum)focusSpectrumRow(spectrum);else showAnalysisMessage('No measurement spectrum was found near the pointer.');return}svg.setPointerCapture(ev.pointerId);dragStart={...point,energy:energyAt(point.x),intensity:intensityAt(point.y)}};
     function finishOffsetDrag(){if(!offsetDrag)return;const completed=offsetDrag,style=plotStyle(completed.s);zoomDomain=completed.previousZoomDomain;zoomYDomain=completed.previousZoomYDomain;offsetDrag=null;svg.classList.remove('offset-dragging');renderDataBrowser();renderPlot();showAnalysisMessage(`${completed.s.region}: X offset ${style.xOffset.toFixed(3)} eV, Y offset ${formatIntensity(style.yOffset)}.`)}
-    svg.onpointerup=ev=>{if(isCompactPlot()&&(mobilePlotGesture||mobilePlotPointers.has(ev.pointerId))){if(svg.hasPointerCapture(ev.pointerId))svg.releasePointerCapture(ev.pointerId);mobilePlotPointers.delete(ev.pointerId);if(mobilePlotPointers.size)startMobilePlotGesture();else mobilePlotGesture=null;return}if(offsetDrag){if(svg.hasPointerCapture(ev.pointerId))svg.releasePointerCapture(ev.pointerId);finishOffsetDrag();return}if(!dragStart)return;const start=dragStart,point=pointerPoint(ev),distanceX=Math.abs(point.x-start.x),distanceY=Math.abs(point.y-start.y),endEnergy=energyAt(point.x),endIntensity=intensityAt(point.y),hasX=distanceX>=5,hasY=Boolean(plotScale.axisKind==='intensity'&&distanceY>=5);dragStart=null;svg.releasePointerCapture(ev.pointerId);if(hasX||hasY)showDragMenu(ev,{energy:[Math.min(start.energy,endEnergy),Math.max(start.energy,endEnergy)],intensity:hasY?[Math.min(start.intensity,endIntensity),Math.max(start.intensity,endIntensity)]:null,hasX,hasY});else renderPlot()};
+    svg.onpointerup=ev=>{if(isCompactPlot()&&(mobilePlotGesture||mobilePlotPointers.has(ev.pointerId))){if(svg.hasPointerCapture(ev.pointerId))svg.releasePointerCapture(ev.pointerId);mobilePlotPointers.delete(ev.pointerId);if(mobilePlotPointers.size)startMobilePlotGesture();else mobilePlotGesture=null;return}if(offsetDrag){if(svg.hasPointerCapture(ev.pointerId))svg.releasePointerCapture(ev.pointerId);finishOffsetDrag();return}if(!dragStart)return;const start=dragStart,point=pointerPoint(ev),distanceX=Math.abs(point.x-start.x),distanceY=Math.abs(point.y-start.y),endEnergy=energyAt(point.x),endIntensity=intensityAt(point.y),hasX=distanceX>=5,hasY=Boolean(plotScale.yDomain&&distanceY>=5);dragStart=null;svg.releasePointerCapture(ev.pointerId);if(hasX||hasY)showDragMenu(ev,{energy:[Math.min(start.energy,endEnergy),Math.max(start.energy,endEnergy)],intensity:hasY?[Math.min(start.intensity,endIntensity),Math.max(start.intensity,endIntensity)]:null,hasX,hasY});else renderPlot()};
     svg.onpointercancel=ev=>{if(isCompactPlot()){mobilePlotPointers.delete(ev.pointerId);if(mobilePlotPointers.size)startMobilePlotGesture();else mobilePlotGesture=null;return}dragStart=null;hideDragMenu();finishOffsetDrag();renderPlot()};
     function autoscalePlot(){zoomDomain=null;zoomYDomain=null;renderPlot()}
     mobileAutoscaleButton.onclick=autoscalePlot;
@@ -424,6 +479,11 @@
     document.addEventListener('pointerdown',event=>{if(isCompactPlot()&&tip.style.display==='block'&&!event.target.closest?.('.peak-line')&&!tip.contains(event.target))hidePeakTip();if(!dragMenu.hidden&&!dragMenu.contains(event.target)&&event.target!==svg){hideDragMenu();renderPlot()} });
     bindingButton.onclick=()=>setMode('binding'); kineticButton.onclick=()=>setMode('kinetic'); function setMode(m){mode=m;zoomDomain=null;zoomYDomain=null;bindingButton.classList.toggle('active',m==='binding');kineticButton.classList.toggle('active',m==='kinetic');axisLabelElement.textContent=m==='binding'?'Binding energy (eV) — high to low':'Kinetic energy (eV) — low to high';updateSearchSliderBounds();renderEnergyDetails();renderPlot()}
     selectedEnergyMode.onclick=()=>{energyTableMode='selected';renderEnergyDetails();schedulePersist()};searchEnergyMode.onclick=()=>{energyTableMode='search';renderEnergyDetails();peakEnergyInput.focus();schedulePersist()};
+    energySearchKindInput.onchange=()=>{
+      searchQueries[energySearchKind]={target:peakEnergyInput.value,width:energyToleranceInput.value};
+      energySearchKind=energySearchKindInput.value;peakEnergyInput.value=searchQueries[energySearchKind].target;energyToleranceInput.value=searchQueries[energySearchKind].width;
+      updateSearchSliderBounds();renderEnergyDetails();schedulePersist();
+    };
     firstOrderOnlyButton.onclick=()=>setHigherOrderExcitation(false);includeHigherOrdersButton.onclick=()=>setHigherOrderExcitation(true);
     function setHigherOrderExcitation(include){includeHigherOrderExcitation=include;firstOrderOnlyButton.classList.toggle('active',!include);includeHigherOrdersButton.classList.toggle('active',include);updateSearchSliderBounds();renderEnergyDetails();schedulePersist()}
     function syncSearchControl(numberInput,rangeInput,baseMax){
@@ -434,27 +494,30 @@
       const value=energyToleranceInput.valueAsNumber;
       if(!Number.isFinite(value))return NaN;
       const clamped=Math.min(SEARCH_WIDTH_MAX,Math.max(0,value));
-      energyToleranceInput.value=clamped.toFixed(1);
+      energyToleranceInput.value=clamped.toFixed(energySearchKind==='splitting'?2:1);
       energyToleranceRange.value=String(clamped);
       return clamped;
     }
     function updateSearchSliderBounds(){
-      syncSearchControl(peakEnergyInput,peakEnergyRange,mode==='kinetic'&&includeHigherOrderExcitation?photon*3:photon);
+      for(const input of [peakEnergyInput,peakEnergyRange,energyToleranceInput,energyToleranceRange])input.step=energySearchKind==='splitting'?'0.01':'0.1';
+      syncSearchControl(peakEnergyInput,peakEnergyRange,searchSliderMax());
       energyToleranceRange.max=String(SEARCH_WIDTH_MAX);
       normalizedSearchWidth();
     }
     function bindSearchControl(numberInput,rangeInput,baseMax){
       numberInput.oninput=()=>{syncSearchControl(numberInput,rangeInput,baseMax());renderEnergyDetails();schedulePersist()};
-      rangeInput.oninput=()=>{numberInput.value=Number(rangeInput.value).toFixed(1);renderEnergyDetails();schedulePersist()};
+      rangeInput.oninput=()=>{numberInput.value=Number(rangeInput.value).toFixed(energySearchKind==='splitting'?2:1);renderEnergyDetails();schedulePersist()};
     }
-    bindSearchControl(peakEnergyInput,peakEnergyRange,()=>mode==='kinetic'&&includeHigherOrderExcitation?photon*3:photon);
+    function searchSliderMax(){return energySearchKind==='splitting'?50:mode==='kinetic'&&includeHigherOrderExcitation?photon*3:photon;}
+    bindSearchControl(peakEnergyInput,peakEnergyRange,searchSliderMax);
     energyToleranceInput.oninput=()=>{normalizedSearchWidth();renderEnergyDetails();schedulePersist()};
-    energyToleranceRange.oninput=()=>{energyToleranceInput.value=Number(energyToleranceRange.value).toFixed(1);renderEnergyDetails();schedulePersist()};
+    energyToleranceRange.oninput=()=>{energyToleranceInput.value=Number(energyToleranceRange.value).toFixed(energySearchKind==='splitting'?2:1);renderEnergyDetails();schedulePersist()};
     photonPreset.onchange=()=>{ if(photonPreset.value==='custom'){photonEnergy.focus();return} photonEnergy.value=photonPreset.value; updatePhoton(); };
     photonEnergy.oninput=()=>{ const exact=[...photonPreset.options].find(option=>option.value!=='custom'&&Number(option.value)===Number(photonEnergy.value)); photonPreset.value=exact?exact.value:'custom'; updatePhoton(); };
     function updatePhoton(){ const value=Number(photonEnergy.value); if(!Number.isFinite(value)||value<=0)return; photon=value;zoomDomain=null;zoomYDomain=null;updateSearchSliderBounds();renderEnergyDetails();renderPlot(); }
     workFunctionInput.oninput=()=>{const value=workFunctionInput.valueAsNumber;if(!Number.isFinite(value)||value<0)return;workFunction=value;zoomDomain=null;zoomYDomain=null;renderEnergyDetails();renderPlot()};
-    showCoreInput.onchange=showAugerInput.onchange=showPICrossInput.onchange=()=>{renderEnergyDetails();renderPlot()}; clearButton.onclick=()=>{selected.clear();document.querySelectorAll('.element.selected').forEach(x=>x.classList.remove('selected'));render()};
+    showCoreInput.onchange=showAugerInput.onchange=()=>{renderEnergyDetails();renderPlot()};
+    showPICrossInput.onchange=()=>{zoomYDomain=null;renderEnergyDetails();renderPlot()}; clearButton.onclick=()=>{selected.clear();document.querySelectorAll('.element.selected').forEach(x=>x.classList.remove('selected'));render()};
     fileButton.onclick=event=>event.stopPropagation();
     xyFiles.onchange=async()=>{for(const file of xyFiles.files){try{addDataFile(file.name,await file.text())}catch(error){const message=document.createElement('div');message.className='data-error';message.textContent=`${file.name}: ${error.message}`;dataBrowser.prepend(message)}}xyFiles.value=''};
     energyDetails.ontoggle=dataPanel.ontoggle=schedulePersist;

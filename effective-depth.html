@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="弾性散乱を考慮した有効減衰長EALと放出角からXPSの情報深さを見積もります。" />
+  <title>XPS Effective Depth — EAL &amp; Information Depth</title>
+  <link rel="icon" type="image/png" sizes="64x64" href="assets/favicon-64.png" />
+  <link rel="stylesheet" href="assets/css/app.css" />
+  <link rel="stylesheet" href="assets/css/escape-depth.css" />
+  <link rel="stylesheet" href="assets/css/effective-depth.css" />
+  <link rel="stylesheet" href="assets/css/site-menu.css" />
+  <script src="assets/js/i18n.js"></script>
+  <script src="assets/js/i18n-depth.js"></script>
+  <script src="assets/js/i18n-film.js"></script>
+  <script src="assets/js/i18n-reference.js"></script>
+  <script src="assets/js/i18n-messages.js"></script>
+</head>
+<body class="depth-app eal-app">
+  <main class="app">
+    <header>
+      <div><div class="eyebrow">Surface Analysis Toolkit</div><h1>XPS Effective Depth</h1><div class="subtitle">有効減衰長と放出角から、検出信号が生まれる深さを見積もる</div></div>
+      <div class="header-actions"><nav class="app-menu" aria-label="アプリ切り替え"></nav><button id="resetEal" class="reset-all" type="button">Reset all</button></div>
+    </header>
+    <p id="ealStorageStatus" class="storage-status" role="status" hidden></p>
+    <div class="eal-layout">
+      <section class="panel" aria-labelledby="ealInputTitle">
+        <div class="toolbar"><strong id="ealInputTitle">EALと測定条件</strong><span class="model-badge">均質・半無限試料</span></div>
+        <div class="panel-body">
+          <label class="field">EALの指定方法<select id="ealMethod"><option value="transport">IMFPと輸送平均自由行程から近似</option><option value="manual">外部で求めたEALを入力</option></select></label>
+          <div class="field-grid">
+            <label class="field">電子の運動エネルギー / eV<input id="ealEnergy" type="number" min="0.001" step="any" value="1000" /></label>
+            <label class="field">IMFP λi / nm<input id="ealImfp" type="number" min="0.000001" step="any" value="2" /></label>
+            <label class="field">輸送平均自由行程 λtr / nm<input id="ealTransport" type="number" min="0.000001" step="any" value="5" /></label>
+            <label class="field">外部EAL L / nm<input id="ealManual" type="number" min="0.000001" step="any" value="1.5" disabled /></label>
+            <label class="field">放出角 θ / °（表面法線から）<input id="ealAngle" type="number" min="0" max="89.9" step="any" value="45" /></label>
+            <label class="field">Analyzer collection half-angle α / °<input id="ealHalfAngle" type="number" min="0" max="30" step="any" value="0" aria-describedby="angleExplanation" /></label>
+          </div>
+          <p class="field-help"><span>Equivalent conical solid angle Ω / sr:</span> <output id="ealSolidAngle">0</output></p>
+          <p class="field-help">初期値は材料を指定しない例示値です。λiとλtrは同じ材料・電子エネルギーでの値を入力してください。λtrは弾性散乱の輸送断面積から求まる長さで、弾性平均自由行程そのものとは異なります。</p>
+          <label class="field">累積信号を評価する深さ / nm<input id="ealProbeDepth" type="number" min="0" step="any" value="1" /></label>
+          <button id="calculateEal" class="primary-action" type="button">計算を更新</button>
+          <p class="field-help">変更は自動反映・自動保存されます。IMFP・EALは電子の経路に沿った長さ、表示する情報深さは表面法線方向の深さです。</p>
+        </div>
+      </section>
+      <section class="panel" aria-labelledby="ealResultTitle">
+        <div class="toolbar"><strong id="ealResultTitle">有効減衰長・情報深さ</strong><button id="exportEal" class="plot-layout-button" type="button">CSV出力</button></div>
+        <p id="ealError" class="calculation-error" role="alert" hidden></p>
+        <div class="result-metrics"><div><span>有効減衰長 L / nm</span><strong id="ealValue">—</strong></div><div><span>モデル上の平均深さ / nm</span><strong id="ealMean">—</strong></div><div><span>指定深さまでの信号 / %</span><strong id="ealFraction">—</strong></div></div>
+        <p id="ealStatus" class="calculation-status" role="status"></p>
+        <div class="eal-chart"><svg id="ealPlot" viewBox="0 0 760 340" role="img" aria-label="表面からの深さと累積検出信号。EALを用いた計算とIMFPのみの比較"></svg></div>
+        <div class="eal-table-wrap"><table class="eal-table"><thead><tr><th>累積信号</th><th>EALによる深さ / nm</th><th>IMFPのみ / nm</th></tr></thead><tbody id="ealDepthRows"></tbody></table></div>
+        <p class="table-help">D95は検出信号の95%が表面からその深さまでで生じる位置です。グラフは均質な半無限試料の指数減衰モデルによる推定です。</p>
+      </section>
+      <section class="panel eal-notes" aria-labelledby="angleTitle">
+        <div class="toolbar"><strong id="angleTitle">Emission angle, collection half-angle, and solid angle</strong></div>
+        <div class="angle-explanation panel-body" id="angleExplanation">
+          <svg id="angleDiagram" viewBox="0 0 440 250" role="img" aria-label="Surface normal, analyzer axis, and collection cone"></svg>
+          <div class="model-notes">
+            <p>θ is the polar emission angle from the outward surface normal to the analyzer axis. θ = 0° is normal emission; larger θ is more grazing. If your instrument uses a take-off angle measured from the surface plane, enter θ = 90° − take-off angle. θ is not the X-ray incidence angle.</p>
+            <p>α is the collection half-angle around that axis, not a solid angle. A specification of ±5° corresponds to α = 5° and a full opening of 10°. For a circular cone, Ω = 2π(1 − cosα) sr; α = 5° gives about 0.0239 sr. A rectangular slit or nonuniform lens acceptance needs its actual angular response and cannot generally be represented by this formula alone.</p>
+            <p>An electron generated at normal depth z travels z/cosθ in the straight-line model, so P = exp[−z/(L cosθ)]. At θ = 60°, the normal information depth is half the value at θ = 0° for the same L. Real elastic scattering and diffraction can change this simple relation.</p>
+            <p>A finite cone contains many emission angles θ′; the model averages their contributions over solid angle. α = 0° is the limiting single-direction calculation for normalized depth fractions, not a detector collecting finite counts through zero solid angle. ARPES angular resolution and the total lens acceptance are different quantities; use the angular window integrated for your signal.</p>
+          </div>
+        </div>
+      </section>
+      <section class="panel eal-notes" aria-labelledby="ealModelTitle">
+        <div class="toolbar"><strong id="ealModelTitle">モデルと適用条件</strong></div>
+        <div class="panel-body model-notes">
+          <div class="eal-formulas"><div class="formula-card"><span>輸送近似 · NIST SRD 82 Appendix E</span><strong>ω = λi / (λi + λtr)<br>L = λi (1 − 0.735 ω)</strong></div><div class="formula-card"><span>単一放出角での累積信号</span><strong>F(z) = 1 − exp[−z / (L cos θ)]<br>D<sub>p</sub> = −ln(1 − p) L cos θ</strong></div></div>
+          <p>輸送近似のLは、光源と分析器のなす角54°、放出角0〜50°などで平均化した薄膜厚さ評価用のEAL近似です。このページでは50〜2000 eV、受入角の全域が法線から50°以内の場合に限定します。角度別の厳密な輸送計算ではなく、同じLを角度範囲内で使います。</p>
+          <p>受入角がある場合は円錐内の感度・放出強度が立体角あたり一定と仮定します。μ = cos θ′、ℓ = Lμとして、F(z) = 1 − Σ ℓ exp(−z/ℓ) / Σ ℓ、平均深さ = Σ ℓ² / Σ ℓ を数値計算します。EALに加え法線方向への射影を考慮します。</p>
+          <p>EALは材料とエネルギーだけでは一意に定まらず、用途・膜厚・光源・検出配置にも依存します。実験に即した定量解析では対応するNISTデータや電子輸送計算のEALを「外部EAL」に入力してください。入力値は経路方向の長さで、検出角で射影済みの深さではありません。</p>
+          <p>低エネルギーARPESは外部EAL入力に対応します。ただしバンドごとの行列要素、光電子回折、偏光依存や非指数的な深さ分布は含みません。表示値は指数減衰モデル上の情報深さで、任意のARPES配置に対する実験値を保証するものではありません。IMFPのみの曲線は弾性散乱補正を省いた比較です。</p>
+          <p><a href="https://www.nist.gov/system/files/documents/srd/SRD82UsersGuideV1-3.pdf" target="_blank" rel="noopener noreferrer">NIST SRD 82 · EAL Users' Guide（Appendix E）</a> · <a href="https://www.nist.gov/publications/effective-attenuation-lengths-different-quantitative-applications-x-ray-photoelectron" target="_blank" rel="noopener noreferrer">用途ごとのEALの違い</a> · <a href="https://www.nist.gov/publications/practical-guide-inelastic-mean-free-paths-effective-attenuation-lengths-mean-escape" target="_blank" rel="noopener noreferrer">IMFP・EAL・平均脱出深さ・情報深さの区別</a></p>
+        </div>
+      </section>
+    </div>
+    <footer class="depth-footer">このページの条件はブラウザーに保存されます。Reset allはこのページだけを初期状態に戻します。</footer>
+  </main>
+  <script src="assets/js/effective-depth.js"></script>
+  <script src="assets/js/effective-depth-app.js"></script>
+  <script src="assets/js/site-menu.js"></script>
+</body>
+</html>
