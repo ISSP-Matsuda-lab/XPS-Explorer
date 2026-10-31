@@ -20,7 +20,7 @@
   };
   const DEFAULTS = {dimension:2,bravais:'hexagonal',system:'orthogonal',centering:'P',a:3.8,b:3.8,c:6,alpha:90,beta:90,gamma:90,
     photonEnergy:21.2,innerPotential:15,workFunction:4.5,offsetSlit:0,offsetPerpendicular:0,azimuth:0,normal:'0, 0, 1',slitDirection:'1, 0, 0',
-    scanMode:'deflector',slitStart:-15,slitEnd:15,scanStart:-15,scanEnd:15,slitCount:31,scanCount:31,units:'angstrom',showBZ:true,allZones:false,fold:false,whiteBackground:false,colorScale:'rainbow',colorBy:'scan'};
+    scanMode:'deflector',slitStart:-15,slitEnd:15,scanStart:-15,scanEnd:15,slitStep:1,scanStep:1,units:'angstrom',showBZ:true,allZones:false,fold:false,whiteBackground:false,colorScale:'rainbow',colorBy:'scan'};
   function finite(value,label) { if (!Number.isFinite(value)) throw Error(label+' must be a finite number.'); return value; }
   function positive(value,label) { finite(value,label); if(value<=0)throw Error(label+' must be positive.'); return value; }
   function lattice(config) {
@@ -147,12 +147,27 @@
     return combine([basis.slit,basis.perpendicular,basis.normal],[x,y,z]);
   }
   function simulate(config,cell=lattice(config)) {
-    const ranges=[['Slit',config.slitStart,config.slitEnd,config.slitCount],['Scan',config.scanStart,config.scanEnd,config.scanCount]];
-    for(const [label,start,end,count] of ranges){finite(start,label+' start');finite(end,label+' end');if(start>end)throw Error('Start angle must not exceed end angle.');if(!Number.isInteger(count)||count<1||count>121)throw Error('Use 1–121 points per angle.');if(start!==end&&count===1)throw Error('A nonzero scan range needs at least two points.');}
+    const values=axis=>{
+      const start=finite(config[axis+'Start'],axis+' start'),end=finite(config[axis+'End'],axis+' end');
+      if(start>end)throw Error('Start angle must not exceed end angle.');
+      // Accept legacy numerical callers; the UI migrates saved counts to steps.
+      if(config[axis+'Count']!==undefined){
+        const count=config[axis+'Count'];
+        if(!Number.isInteger(count)||count<1||count>121)throw Error('Use 1–121 points per angle.');
+        if(start!==end&&count===1)throw Error('A nonzero scan range needs at least two points.');
+        return start===end?[start]:Array.from({length:count},(_,i)=>start+(end-start)*i/(count-1));
+      }
+      const step=finite(config[axis+'Step'],axis+' step');
+      if(step<=0)throw Error('Angle step must be positive.');
+      const intervals=(end-start)/step,nearest=Math.round(intervals);
+      const count=(Math.abs(intervals-nearest)<=1e-10?nearest:Math.floor(intervals))+1;
+      if(!Number.isFinite(count)||count>121)throw Error('Angle step is too small. Use at most 121 points per angle.');
+      return Array.from({length:count},(_,i)=>Math.min(end,start+i*step));
+    };
+    const slitValues=values('slit'),scanValues=values('scan');
     if(config.scanMode!=='deflector')throw Error('Only deflector mode is supported.');
     const basis=orientation(config),fold=nearestSolver(cell.reciprocal),points=[];
-    const values=(start,end,count)=>start===end?[start]:Array.from({length:count},(_,i)=>start+(end-start)*i/(count-1));
-    for(const scan of values(config.scanStart,config.scanEnd,config.scanCount))for(const slit of values(config.slitStart,config.slitEnd,config.slitCount)){
+    for(const scan of scanValues)for(const slit of slitValues){
       const absolute=momentum(config,slit,scan,basis),projected=cell.dimension===2?[absolute[0],absolute[1],0]:absolute.slice();
       const displayed=config.fold?fold(projected).point:projected;
       points.push({absolute,displayed,slit,scan});

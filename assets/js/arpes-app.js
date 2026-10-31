@@ -34,7 +34,7 @@
     else if(system==='monoclinic')fixed.alpha=fixed.gamma=90;
     for(const id of ['b','c','alpha','beta','gamma']){$(id).disabled=Object.hasOwn(fixed,id);if($(id).disabled)$(id).value=fixed[id];$(id).parentElement.hidden=dim===2&&['alpha','beta'].includes(id);}
     $('latticeHelp').textContent=translate(dim===2?'2D uses the crystal xy plane. c sets the π/c reference for kz; it does not change the 2D lattice.':system==='orthogonal'?'Orthogonal: a, b, c are independent; all angles are 90°. Equal lengths include cubic and tetragonal metrics.':system==='rhombohedral'?'Rhombohedral axes: a = b = c and α = β = γ. These axes already define a primitive cell.':system==='hexagonal'?'Hexagonal axes: a = b, γ = 120°. R uses the obverse setting with three lattice points.':'Symmetry fixes the disabled parameters. Monoclinic cells use unique axis b.');
-    $('scanHelp').textContent=translate('Deflector uses a rotation about the slit axis after the slit-angle rotation. Start = end gives a single cut.');
+    $('scanHelp').textContent=translate('Angles advance from Start by Step without exceeding End. End is included only when reached by the step. Start = end gives a single cut. Maximum 121 points per angle.');
     for(const id of ranges)if(Number.isFinite($(id).valueAsNumber))$(id+'Range').value=$(id).value;
   }
   function drawCell(){
@@ -76,7 +76,11 @@
   }
   const schedule=()=>{if(!frame)frame=requestAnimationFrame(render);};
   let initial={...A.DEFAULTS};
-  try{const raw=localStorage.getItem(key);if(raw){const stored=JSON.parse(raw);if(!stored||typeof stored!=='object')throw Error('Invalid saved state');for(const id of keys)if(typeof stored[id]===typeof initial[id])initial[id]=stored[id];A.simulate(initial);if(!['angstrom','pi'].includes(initial.units)||!Object.hasOwn(P.PALETTES,initial.colorScale)||!['slit','scan','kz'].includes(initial.colorBy))throw Error('Invalid saved view');}}
+  try{const raw=localStorage.getItem(key);if(raw){const stored=JSON.parse(raw);if(!stored||typeof stored!=='object')throw Error('Invalid saved state');for(const id of keys)if(typeof stored[id]===typeof initial[id])initial[id]=stored[id];for(const axis of ['slit','scan'])if(stored[axis+'Step']===undefined&&stored[axis+'Count']!==undefined){
+      const count=stored[axis+'Count'];if(!Number.isInteger(count)||count<1||count>121)throw Error('Invalid saved count');
+      const width=initial[axis+'End']-initial[axis+'Start'];if(width!==0&&count===1)throw Error('Invalid saved count');
+      initial[axis+'Step']=width===0?1:width/(count-1);
+    }A.simulate(initial);if(!['angstrom','pi'].includes(initial.units)||!Object.hasOwn(P.PALETTES,initial.colorScale)||!['slit','scan','kz'].includes(initial.colorBy))throw Error('Invalid saved view');}}
   catch{initial={...A.DEFAULTS};$('storageStatus').hidden=false;$('storageStatus').textContent=translate('Saved settings could not be loaded. Defaults are shown.');}
   write(initial);render();
   // Match natural content heights while keeping collapsed panels independent.

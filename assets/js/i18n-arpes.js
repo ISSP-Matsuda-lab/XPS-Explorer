@@ -1,4 +1,8 @@
 I18n.register([
+['Step / °','ステップ / °'],
+['Angle step must be positive.','角度ステップには正の値を指定してください。'],
+['Angle step is too small. Use at most 121 points per angle.','角度ステップが小さすぎます。各角度の点数が121以下になるようにしてください。'],
+['Angles advance from Start by Step without exceeding End. End is included only when reached by the step. Start = end gives a single cut. Maximum 121 points per angle.','開始角からステップごとに終了角以下まで走査します。終了角はステップで到達する場合のみ含みます。開始＝終了は単一カットです。各角度は最大121点です。'],
 ['Probe energy / eV','移動点のエネルギー / eV'],['Probe on curve','曲線上の移動点'],['Autoscale','オートスケール'],
 ['Enter a finite number for each vector component.','各ベクトル成分に有限の数値を入力してください。'],
 ['Enter a probe energy within the plotted energy range and above the work function.','移動点のエネルギーは設定した表示範囲内かつ仕事関数より大きい値にしてください。'],

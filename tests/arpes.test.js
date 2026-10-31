@@ -174,4 +174,17 @@ test('Cubic centered lattices have a different axial boundary from a primitive c
     close(A.norm(nearest([0,0,boundary*.99]).shift),0);assert(A.norm(nearest([0,0,boundary*1.01]).shift)>0);
   }
 });
+test('Angle steps preserve spacing and omit unreachable endpoints',()=>{
+  const result=A.simulate(config({slitStart:-.3,slitEnd:.7,slitStep:.3,scanStart:0,scanEnd:0,scanStep:1}));
+  assert.equal(result.points.length,4);result.points.forEach((p,i)=>close(p.slit,-.3+i*.3));
+  const exact=A.simulate(config({slitStart:-.3,slitEnd:.3,slitStep:.1,scanStart:0,scanEnd:0}));
+  assert.equal(exact.points.length,7);close(exact.points.at(-1).slit,.3);
+});
+test('Angle steps handle a single cut, large steps, and the point limit',()=>{
+  assert.equal(A.simulate(config({slitStart:2,slitEnd:2,scanStart:0,scanEnd:1,scanStep:2})).points.length,1);
+  assert.equal(A.simulate(config({slitStep:.25,scanStep:.25})).points.length,14641);
+});
+test('Invalid or excessive angle steps fail before generating the map',()=>{
+  for(const step of [0,-1,NaN,Infinity,.001])assert.throws(()=>A.simulate(config({slitStep:step})));
+});
 console.log(`${passed} ARPES numerical tests passed.`);

@@ -42,7 +42,7 @@ let browser;
   assert.equal(await page.locator('#innerPotential').inputValue(),'15');
   for(const id of ['slitStart','scanStart'])assert.equal(await page.locator('#'+id).inputValue(),'-15');
   for(const id of ['slitEnd','scanEnd'])assert.equal(await page.locator('#'+id).inputValue(),'15');
-  for(const id of ['slitCount','scanCount'])assert.equal(await page.locator('#'+id).inputValue(),'31');
+  for(const id of ['slitStep','scanStep'])assert.equal(await page.locator('#'+id).inputValue(),'1');
   assert.equal(await page.locator('#topView').isVisible(),false);
   assert.equal(await page.locator('.configuration-panel #dimension').count(),1);
   const offsetBoxes=await Promise.all(['offsetSlit','offsetPerpendicular','azimuth'].map(id=>page.locator('#'+id).boundingBox()));assert(offsetBoxes.every(b=>Math.abs(b.y-offsetBoxes[0].y)<2));
@@ -133,6 +133,23 @@ let browser;
   const colors=await canvasImage();await select('colorBy','scan');assert.notEqual(await canvasImage(),colors);
   await page.locator('#slitStartRange').fill('-35.5');await flush();assert.equal(await page.locator('#slitStart').inputValue(),'-35.5');
   await fill('scanEnd',31.2);assert.equal(await page.locator('#scanEndRange').inputValue(),'31.2');
+  const beforeMigration=await page.evaluate(()=>ArpesWorkspace.getConfig());
+  // Saved point counts migrate once; subsequent saves contain steps only.
+  await page.evaluate(()=>{
+    const saved=ArpesWorkspace.getConfig();delete saved.slitStep;delete saved.scanStep;
+    saved.slitCount=61;saved.scanCount=16;localStorage.setItem('xps-toolkit.arpes.v1',JSON.stringify(saved));
+  });
+  await page.reload();await flush();await valid();
+  assert.equal(await page.locator('#slitStep').inputValue(),String((15+35.5)/60));
+  assert.equal(await page.locator('#scanStep').inputValue(),String((31.2+15)/15));
+  const migrated=await page.evaluate(()=>JSON.parse(localStorage.getItem('xps-toolkit.arpes.v1')));
+  assert(!('slitCount' in migrated));assert(!('scanCount' in migrated));
+  await fill('slitStep',0);assert.equal(await page.locator('#plannerError').isVisible(),true);
+  await page.locator('#resetArpes').click();await flush();await valid();
+  assert.equal(await page.locator('#slitStep').inputValue(),'1');
+  await fill('slitStep',.5);await page.reload();await flush();await valid();assert.equal(await page.locator('#slitStep').inputValue(),'0.5');
+  await page.locator('#resetArpes').click();await flush();
+  await page.evaluate(saved=>localStorage.setItem('xps-toolkit.arpes.v1',JSON.stringify(saved)),beforeMigration);await page.reload();await flush();await valid();
   for(const bravais of ['square','rectangular','centered','hexagonal','oblique']){await select('bravais',bravais);await valid();assert.equal(await page.evaluate(()=>ArpesWorkspace.getResult().cell.dimension),2);}
   assert.equal(await page.locator('#scanMode').count(),0);assert.equal(await page.locator('.scan-axis h2').first().textContent(),'Deflector angle');
   await fill('photonEnergy',100);await page.locator('#fold').check();await flush();await valid();
@@ -317,7 +334,7 @@ let browser;
   await page.mouse.move(0,0);assert.equal(await page.locator('#momentumHairlines').isVisible(),false);
   await equalPanelHeights();await page.locator('.planner-lower').screenshot({path:path.join(artifacts,'arpes-aligned-panels.png')});
   await page.locator('.configuration-panel').screenshot({path:path.join(artifacts,'arpes-vector-inputs.png')});
-  await fill('slitCount',121);await fill('scanCount',121);await valid();assert.equal(await page.evaluate(()=>ArpesWorkspace.getResult().points.length),14641);
+  for(const axis of ['slit','scan']){await fill(axis+'Start',-15);await fill(axis+'End',15);await fill(axis+'Step',.25);}await valid();assert.equal(await page.evaluate(()=>ArpesWorkspace.getResult().points.length),14641);
   await page.goto(url+'/escape-depth.html');await page.locator('.site-menu-toggle').click();assert.equal(await page.locator('.app-menu a[href="arpes-cut-planner.html"]').isVisible(),true);assert.equal(await page.locator('.depth-view-switch a[aria-current="page"]').textContent(),'IMFP');
   // Native touch input verifies pointer capture and the browser's gesture handling.
   const mobileContext=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:1}),mobile=await mobileContext.newPage();
