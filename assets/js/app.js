@@ -92,7 +92,7 @@
     }}
     async function persistWorkspace(){
       if(!storageReady)return;
-      try{const db=await openStorage(),state=workspaceState();await new Promise((resolve,reject)=>{const request=db.transaction(STORAGE_STORE,'readwrite').objectStore(STORAGE_STORE).put(state,STORAGE_KEY);request.onsuccess=()=>resolve();request.onerror=()=>reject(request.error)})}catch(error){console.error('Could not save workspace state',error)}
+      try{const db=await openStorage(),state=workspaceState();await new Promise((resolve,reject)=>{const transaction=db.transaction(STORAGE_STORE,'readwrite');transaction.oncomplete=()=>resolve();transaction.onabort=transaction.onerror=()=>reject(transaction.error);transaction.objectStore(STORAGE_STORE).put(state,STORAGE_KEY)})}catch(error){console.error('Could not save workspace state',error)}
     }
     function schedulePersist(){if(!storageReady)return;clearTimeout(saveTimer);saveTimer=setTimeout(persistWorkspace,150)}
     function restoreWorkspace(state){
@@ -522,7 +522,20 @@
     xyFiles.onchange=async()=>{for(const file of xyFiles.files){try{addDataFile(file.name,await file.text())}catch(error){const message=document.createElement('div');message.className='data-error';message.textContent=`${file.name}: ${error.message}`;dataBrowser.prepend(message)}}xyFiles.value=''};
     energyDetails.ontoggle=dataPanel.ontoggle=schedulePersist;
     resetAllButton.onclick=async()=>{storageReady=false;clearTimeout(saveTimer);if(storageDatabase){storageDatabase.close();storageDatabase=null}await new Promise(resolve=>{const request=indexedDB.deleteDatabase(STORAGE_DB);request.onsuccess=request.onerror=request.onblocked=()=>resolve()});location.reload()};
-    window.addEventListener('pagehide',()=>{clearTimeout(saveTimer);persistWorkspace()});
+    function flushWorkspace(){clearTimeout(saveTimer);return persistWorkspace()}
+    document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushWorkspace()});
+    window.addEventListener('pagehide',flushWorkspace);
+    // Mobile browsers can suspend IndexedDB work as soon as navigation starts.
+    // Finish the transaction while this page is still active, including changes
+    // made inside the debounce interval. Delegation survives site-menu rebuilding.
+    document.querySelector('.app-menu').addEventListener('click',async event=>{
+      const link=event.target.closest('a');
+      if(!link||event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||link.hasAttribute('download')||(link.target&&link.target!=='_self')||link.origin!==location.origin)return;
+      event.preventDefault();
+      await workspaceInitialization;
+      await flushWorkspace();
+      location.assign(link.href);
+    });
     async function initialize(){
       let restored=false;
       try{restored=restoreWorkspace(await readStoredWorkspace())}catch(error){console.error('Could not restore workspace state',error)}
@@ -532,4 +545,4 @@
       refreshAnalysisStateOptions();updateSearchSliderBounds();renderDataBrowser();renderFitResults();render();
       storageReady=true;schedulePersist();
     }
-    initialize();
+    const workspaceInitialization=initialize();
